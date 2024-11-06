@@ -100,6 +100,8 @@ public class AckExecute {
         Reply reply = executeUtil.executeRequest(execute.getPrePrepare());
 
         if(reply == null){
+            // If previous transactions are not executed
+
             AckMessageWrapper ackMessageWrapper = AckMessageWrapper.builder()
                     .type(AckMessageWrapper.MessageType.REPLY)
                     .fromPort(socketService.getAssignedPort())
@@ -116,6 +118,7 @@ public class AckExecute {
             return;
         }
 
+        dbLog.setApproved(reply.isApproved());
         dbLog.setType(Log.Type.EXECUTED);
         dbLog = logRepository.save(dbLog);
 

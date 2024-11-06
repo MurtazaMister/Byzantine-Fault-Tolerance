@@ -103,6 +103,8 @@ public class Execute {
                 Reply selfReply = executeRequest(prePrepare);
 
                 if(selfReply == null) return null;
+
+                dbLog.setApproved(selfReply.isApproved());
                 dbLog.setType(Log.Type.EXECUTED);
                 dbLog = logRepository.save(dbLog);
 
@@ -124,6 +126,8 @@ public class Execute {
                 selfAck.signMessage(keyConfig.getPrivateKey());
 
                 ackMessageWrapperList.add(selfAck);
+
+                log.info("AckMessageWrapperList: {}", ackMessageWrapperList);
 
                 for(AckMessageWrapper ackMessageWrapper : ackMessageWrapperList) {
                     if(!ackMessageWrapper.verifyMessage(keyConfig.getPublicKeyStore().get(ackMessageWrapper.getFromPort()))) {
@@ -174,6 +178,7 @@ public class Execute {
                         .requestDigest(selfReply.getRequestDigest())
                         .finalBalance(selfReply.getFinalBalance())
                         .replyDigest(selfReply.getReplyDigest())
+                        .approved(selfReply.isApproved())
                         .signatures(signaturesList)
                         .build();
 
@@ -233,6 +238,7 @@ public class Execute {
                             .timestamp(prePrepare.getRequest().getTimestamp())
                             .requestDigest(prePrepare.getRequestDigest())
                             .finalBalance(sender.getBalance())
+                            .approved(true)
                             .build();
 
                     selfReply.setReplyDigest(selfReply.getHash());
@@ -243,7 +249,20 @@ public class Execute {
                 }
                 else {
                     log.error("Insufficient balance with sender: {} to perform: {}", prePrepare.getRequest().getClientId(), prePrepare.getRequest());
-                    return null;
+                    log.error("Rejecting transaction");
+
+                    Reply selfReply = Reply.builder()
+                            .currentView(prePrepare.getCurrentView())
+                            .timestamp(prePrepare.getRequest().getTimestamp())
+                            .requestDigest(prePrepare.getRequestDigest())
+                            .finalBalance(sender.getBalance())
+                            .approved(false)
+                            .build();
+
+                    selfReply.setReplyDigest(selfReply.getHash());
+                    selfReply.signMessage(keyConfig.getPrivateKey());
+
+                    return selfReply;
                 }
 
             }

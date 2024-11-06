@@ -12,7 +12,7 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class DatabaseResetService {
 
-    private String[] tables = {"log", "replylog"};
+    private String[] tables = {"log", "replyLog"};
 
     private final JdbcTemplate primaryJdbcTemplate;
 

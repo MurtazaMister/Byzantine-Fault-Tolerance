@@ -49,6 +49,9 @@ public class ClientService {
     @Autowired
     private ExitService exitService;
 
+    @Value("${client.broadcast.wait}")
+    private int broadcastWait;
+
     @Autowired
     @Lazy
     private ValidationService validationService;
@@ -218,10 +221,16 @@ public class ClientService {
                                 ClientReply clientReply = apiService.transact(request);
 
                                 if(clientReply == null) {
-                                    System.out.println("Transaction not executed");
+                                    System.out.println("Transaction failed");
                                 }
                                 else if(clientReply.getCurrentView() == -1){
-                                    System.out.println("Transaction timed out, broadcasting");
+                                    try {
+                                        System.out.println("Didn't receive reply, broadcasting request after "+broadcastWait+" ms");
+                                        Thread.sleep(broadcastWait);
+                                    } catch (InterruptedException e) {
+                                        e.printStackTrace();
+                                    }
+                                    System.out.println("Broadcasting");
 
                                     List<AckMessageWrapper> acks = apiService.retransact(request);
 
@@ -257,7 +266,9 @@ public class ClientService {
 
                                     if (finalReply != null && signatureCount != 0) {
                                         System.out.println("Verified at least f+1 signatures in re-transact, received " + signatureCount + " signatures");
-                                        System.out.println("Final balance = " + finalReply.getFinalBalance() + "\nAfter executing transaction " + request.getAmount() + " : " + request.getClientId() + " -> " + request.getReceiverId());
+                                        System.out.println("Transaction status: "+((finalReply.isApproved())?"Approved":"Failed"));
+                                        System.out.println("Final balance = " + finalReply.getFinalBalance() + "\nAfter executing "+((finalReply.isApproved())?"approved":"failed")+" transaction " + request.getAmount() + " : " + request.getClientId() + " -> " + request.getReceiverId());
+                                        apiConfig.setCurrentView((int)finalReply.getCurrentView());
                                     } else {
                                         System.out.println("Received unverified reply for transaction " + request.getAmount() + " : " + request.getClientId() + " -> " + request.getReceiverId());
                                     }
@@ -271,6 +282,8 @@ public class ClientService {
 
                                         // Verify the client reply signatures
 
+                                        System.out.println(clientReply);
+
                                         int signatureCount = 0;
 
                                         for (long id : clientReply.getSignatures().keySet()) {
@@ -282,9 +295,11 @@ public class ClientService {
 
                                         if (signatureCount >= threshold) {
                                             System.out.println("Verified at least f+1 signatures, received " + signatureCount + " signatures");
-                                            System.out.println("Final balance = " + clientReply.getFinalBalance() + "\nAfter executing transaction " + request.getAmount() + " : " + request.getClientId() + " -> " + request.getReceiverId());
+                                            System.out.println("Transaction status: "+((clientReply.isApproved())?"Approved":"Failed"));
+                                            System.out.println("Final balance = " + clientReply.getFinalBalance() + "\nAfter executing "+ ((clientReply.isApproved())?"approved":"failed") +" transaction " + request.getAmount() + " : " + request.getClientId() + " -> " + request.getReceiverId());
+                                            apiConfig.setCurrentView((int)clientReply.getCurrentView());
                                         } else {
-                                            System.out.println("Received unverified reply for transaction " + request.getAmount() + " : " + request.getClientId() + " -> " + request.getReceiverId());
+                                            System.out.println("Received unverified reply for transaction " + request.getAmount() + " : " + request.getClientId() + " -> " + request.getReceiverId()+ " with signature count = "+signatureCount);
                                         }
                                     }
 

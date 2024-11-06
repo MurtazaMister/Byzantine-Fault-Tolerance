@@ -32,6 +32,8 @@ public class Log {
     @Enumerated(EnumType.STRING)
     private Type type;
 
+    private boolean approved;
+
     @Convert(converter = PrePrepareConverter.class)
     @Column(columnDefinition = "MEDIUMTEXT")
     private PrePrepare prePrepare;

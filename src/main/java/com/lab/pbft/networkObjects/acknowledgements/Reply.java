@@ -25,6 +25,8 @@ public class Reply implements Serializable {
 
     private String requestDigest;
 
+    private boolean approved;
+
     private long finalBalance;
 
     private String replyDigest;
@@ -37,7 +39,8 @@ public class Reply implements Serializable {
         hash.append(currentView)
                 .append(timestamp)
                 .append(requestDigest)
-                .append(finalBalance);
+                .append(finalBalance)
+                .append(approved);
 
         MessageDigest digest = MessageDigest.getInstance("SHA-256");
 
