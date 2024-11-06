@@ -1,0 +1,344 @@
+package com.lab.pbft.util;
+
+import com.lab.pbft.config.KeyConfig;
+import com.lab.pbft.config.SocketConfig;
+import com.lab.pbft.controller.UserAccountController;
+import com.lab.pbft.networkObjects.acknowledgements.AckMessage;
+import com.lab.pbft.networkObjects.acknowledgements.AckServerStatusUpdate;
+import com.lab.pbft.networkObjects.acknowledgements.ClientReply;
+import com.lab.pbft.networkObjects.acknowledgements.Reply;
+import com.lab.pbft.networkObjects.communique.Message;
+import com.lab.pbft.networkObjects.communique.Request;
+import com.lab.pbft.networkObjects.communique.ServerStatusUpdate;
+import com.lab.pbft.service.PbftService;
+import com.lab.pbft.service.SocketService;
+import com.lab.pbft.wrapper.AckMessageWrapper;
+import com.lab.pbft.wrapper.MessageWrapper;
+import lombok.extern.slf4j.Slf4j;
+import org.jetbrains.annotations.NotNull;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.stereotype.Component;
+
+import java.io.*;
+import java.net.InetSocketAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.net.SocketTimeoutException;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
+
+@Component
+@Slf4j
+public class SocketMessageUtil {
+
+    @Autowired
+    @Lazy
+    AckDisplayUtil ackDisplayUtil;
+
+    @Autowired
+    ServerStatusUtil serverStatusUtil;
+
+    @Autowired
+    PortUtil portUtil;
+
+    @Autowired
+    SocketConfig socketConfig;
+
+    @Autowired
+    @Lazy
+    SocketService socketService;
+
+    @Autowired
+    @Lazy
+    private KeyConfig keyConfig;
+    @Autowired
+    @Lazy
+    private PbftService pbftService;
+    @Autowired
+    @Lazy
+    private UserAccountController userAccountController;
+
+    public AckMessageWrapper sendMessageToServer(int targetPort, MessageWrapper message) throws IOException {
+
+//        if(serverStatusUtil.isFailed()){
+//            throw new IOException("Server Unavailable");
+//        }
+
+        AckMessageWrapper ackMessageWrapper = null;
+        try(Socket socket = new Socket()){
+
+            // setting connection timeout
+            socket.connect(new InetSocketAddress("localhost", targetPort), socketConfig.getConnectionTimeout());
+            // setting timeout for receiving ack
+            socket.setSoTimeout(socketConfig.getReadTimeout());
+
+            ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
+            ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
+
+            // Signing message before sending
+
+            message.signMessage(keyConfig.getPrivateKey());
+
+            out.writeObject(message);
+            out.flush();
+
+            try{
+                // Receiving acknowledgement from the respective server
+                ackMessageWrapper = (AckMessageWrapper) in.readObject();
+                ackDisplayUtil.displayAcknowledgement(ackMessageWrapper);
+            } catch (SocketTimeoutException e) {
+                log.error("Timeout after {} ms waiting for port {}", socketConfig.getReadTimeout(), targetPort);
+            } catch (EOFException e) {
+                log.error("Connection closed by the server without sending ack for port {}: {}", targetPort, e.toString());
+            } catch (IOException e) {
+                log.error("IO Error receiving ack message from port {}: {}", targetPort, e.toString());
+            } catch (Exception e) {
+                log.error("Unexpected error receiving ack message from port {}: {}", targetPort, e.toString());
+            }
+
+        }
+        catch (IOException e){
+            log.error("Failed to send message to port {}: {}", targetPort, e.getMessage());
+        } catch (Exception e) {
+            log.error("Exception: {}", e.getMessage());
+        }
+        if(ackMessageWrapper == null) throw new IOException("Service Unavailable");
+        return ackMessageWrapper;
+    }
+
+    public CompletableFuture<List<AckMessageWrapper>> broadcast(MessageWrapper messageWrapper, List<Integer> PORT_POOL) throws IOException{
+//        if(serverStatusUtil.isFailed()){
+//            return CompletableFuture.failedFuture(new IOException("Server Unavailable"));
+//        }
+
+        long assignedPort = socketService.getAssignedPort();
+
+        List<CompletableFuture<AckMessageWrapper>> futures = PORT_POOL.stream()
+                .filter(port -> port != assignedPort)
+                .map(port -> CompletableFuture.supplyAsync(() -> {
+                    try{
+                        MessageWrapper smw = MessageWrapper.from(messageWrapper);
+                        smw.setToPort(port);
+                        return sendMessageToServer(port, smw);
+                    }
+                    catch(IOException e){
+                        log.error("IOException {}: {}", port, e.getMessage());
+                        return null;
+                    }
+                    catch(Exception e){
+                        log.error("Failed to send message to port {}: {}", port, e.getMessage());
+                        return null;
+                    }
+                }))
+                .toList();
+
+        return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+                .thenApply(v -> futures.stream()
+                        .map(CompletableFuture::join)
+                        .filter(ack -> ack!=null)
+                        .collect(Collectors.toList()));
+
+
+    }
+
+    public CompletableFuture<List<AckMessageWrapper>> broadcast(MessageWrapper messageWrapper) throws IOException {
+        List<Integer> PORT_POOL = portUtil.portPoolGenerator();
+        return broadcast(messageWrapper, PORT_POOL);
+    }
+
+    public void listenForIncomingMessages(@NotNull ServerSocket serverSocket) {
+        try {
+            while (true) {
+                Socket incoming = serverSocket.accept();
+                new Thread(() -> handleIncomingMessage(incoming)).start();
+            }
+        } catch (IOException e) {
+            log.trace("Error while listening for incoming messages\n{}", e.getMessage());
+        }
+    }
+
+    private void handleIncomingMessage(@NotNull Socket incoming) {
+        try {
+
+            ObjectOutputStream out = new ObjectOutputStream(incoming.getOutputStream());
+            ObjectInputStream in = new ObjectInputStream(incoming.getInputStream());
+
+            MessageWrapper message;
+            while ((message = (MessageWrapper) in.readObject()) != null) { // incoming message from another server
+
+
+                if(!message.verifyMessage(keyConfig.getPublicKeyStore().get(message.getFromPort()))){
+                    log.error("Invalid signature for message: {}", message);
+                    return;
+                }
+
+                switch (message.getType()) {
+                    case SERVER_STATUS_UPDATE:
+                        ServerStatusUpdate serverStatusUpdate = message.getServerStatusUpdate();
+                        if (message.getToPort() == socketService.getAssignedPort()) {
+                            log.info("Received verified message from port {}: {}", message.getFromPort(), serverStatusUpdate);
+
+                            serverStatusUtil.setFailed(serverStatusUpdate.isFailServer());
+
+                            AckServerStatusUpdate ackServerStatusUpdate = AckServerStatusUpdate.builder()
+                                    .serverFailed(serverStatusUtil.isFailed())
+                                    .build();
+
+                            AckMessageWrapper ackMessageWrapper = AckMessageWrapper.builder()
+                                    .type(AckMessageWrapper.MessageType.ACK_SERVER_STATUS_UPDATE)
+                                    .ackServerStatusUpdate(ackServerStatusUpdate)
+                                    .fromPort(socketService.getAssignedPort())
+                                    .toPort(message.getFromPort())
+                                    .build();
+
+                            ackMessageWrapper.signMessage(keyConfig.getPrivateKey());
+
+                            out.writeObject(ackMessageWrapper);
+
+                            log.info("Sent signed ACK to server {}: {}", ackMessageWrapper.getToPort(), ackMessageWrapper.getAckServerStatusUpdate());
+
+                            out.flush();
+                        } else {
+                            log.info("Target port does not match port of current server");
+
+                            AckServerStatusUpdate ackServerStatusUpdate = AckServerStatusUpdate.builder()
+                                    .serverFailed(serverStatusUtil.isFailed())
+                                    .build();
+
+                            AckMessageWrapper ackMessageWrapper = AckMessageWrapper.builder()
+                                    .type(AckMessageWrapper.MessageType.ACK_SERVER_STATUS_UPDATE)
+                                    .ackServerStatusUpdate(ackServerStatusUpdate)
+                                    .fromPort(socketService.getAssignedPort())
+                                    .toPort(message.getFromPort())
+                                    .build();
+
+                            ackMessageWrapper.signMessage(keyConfig.getPrivateKey());
+
+                            out.writeObject(ackMessageWrapper);
+
+                            log.info("Sent signed ACK to server {}: {}", ackMessageWrapper.getToPort(), ackMessageWrapper.getAckServerStatusUpdate());
+
+                            out.flush();
+                        }
+                        break;
+                    case MESSAGE:
+                    {
+                        Message mess = message.getMessage();
+                        log.info("Received verified message from port {}: {}", message.getFromPort(), mess);
+
+                        AckMessage ackMessage = AckMessage.builder()
+                                .message(mess.getMessage())
+                                .build();
+
+                        AckMessageWrapper ackMessageWrapper = AckMessageWrapper.builder()
+                                .type(AckMessageWrapper.MessageType.ACK_MESSAGE)
+                                .ackMessage(ackMessage)
+                                .fromPort(message.getToPort())
+                                .toPort(message.getFromPort())
+                                .build();
+
+                        ackMessageWrapper.signMessage(keyConfig.getPrivateKey());
+
+                        out.writeObject(ackMessageWrapper);
+
+                        log.info("Sent signed ACK to server {}: {}", ackMessageWrapper.getToPort(), ackMessage);
+
+                        out.flush();
+                    }
+                    break;
+                    case REQUEST: {
+                        if(serverStatusUtil.isFailed()) return;
+
+                        Request request = message.getRequest();
+                        log.info("Received verified request from port {}: {}", message.getFromPort(), request);
+
+                        // IF I'M THE LEADER
+                        // RUN PBFT
+                        // ELSE FORWARD
+                        // TO LEADER
+
+                        if(request.getCurrentView() != socketService.getCurrentView()) {
+
+                            ClientReply clientReply = ClientReply.builder()
+                                    .currentView(socketService.getCurrentView())
+                                    .timestamp(request.getTimestamp())
+                                    .requestDigest(request.getHash())
+                                    .approved(false)
+                                    .finalBalance(-1)
+                                    .build();
+
+                            AckMessageWrapper ackMessageWrapper = AckMessageWrapper.builder()
+                                    .type(AckMessageWrapper.MessageType.CLIENT_REPLY)
+                                    .clientReply(clientReply)
+                                    .fromPort(message.getToPort())
+                                    .toPort(message.getFromPort())
+                                    .build();
+
+                            ackMessageWrapper.signMessage(keyConfig.getPrivateKey());
+
+                            out.writeObject(ackMessageWrapper);
+
+                        }
+
+                        if(socketService.getCurrentLeader() == socketService.getLeader(request.getCurrentView())) {
+                            ClientReply clientReply = userAccountController.transact(request).getBody();
+                        }
+
+                        // SEND REPLY BACK TO THE SERVER
+                        // FROM WHOM YOU GOT THE REQUEST
+
+                        pbftService.prePrepare(request);
+
+                        Reply reply = null;
+
+                        AckMessageWrapper ackMessageWrapper = AckMessageWrapper.builder()
+                                .type(AckMessageWrapper.MessageType.REPLY)
+                                .reply(reply)
+                                .fromPort(message.getToPort())
+                                .toPort(message.getFromPort())
+                                .build();
+
+                        ackMessageWrapper.signMessage(keyConfig.getPrivateKey());
+
+                        out.writeObject(ackMessageWrapper);
+
+                        log.info("Sent signed reply to server {}: {}", ackMessageWrapper.getToPort(), reply);
+
+                        out.flush();
+                    }
+                    break;
+                    case PRE_PREPARE:{
+                        if(serverStatusUtil.isFailed()) return;
+                        log.info("Received verified pre-prepare from port {}: {}", message.getFromPort(), message.getPrePrepare());
+                        pbftService.prepare(in, out, message);
+                    }
+                    break;
+                    case COMMIT:{
+                        if(serverStatusUtil.isFailed()) return;
+                        log.info("Received verified commit message from port {}: {}", message.getFromPort(), message.getCommit());
+                        pbftService.ackCommit(in, out, message);
+                    }
+                    break;
+                    case EXECUTE:{
+                        if(serverStatusUtil.isFailed()) return;
+                        log.info("Received verified execute message from port {}: {}", message.getFromPort(), message.getExecute());
+                        pbftService.ackExecute(in, out, message);
+                    }
+                    break;
+                }
+            }
+        } catch (IOException | ClassNotFoundException e) {
+            // log.error("IOException | ClassNotFoundException: {}", e.toString());
+        } catch (Exception e) {
+            log.error("Exception: {}", e.getMessage());
+        } finally {
+            try {
+                incoming.close();
+            } catch (IOException e) {
+                log.error("IOException: {}", e.getMessage());
+            }
+        }
+    }
+}
