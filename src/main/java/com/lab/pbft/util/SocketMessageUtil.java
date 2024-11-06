@@ -60,9 +60,8 @@ public class SocketMessageUtil {
     @Lazy
     private UserAccountController userAccountController;
 
-    public AckMessageWrapper sendMessageToServer(int targetPort, MessageWrapper message) throws IOException {
-
-//        if(serverStatusUtil.isFailed()){
+    public AckMessageWrapper sendMessageToServer(int targetPort, MessageWrapper message, int connectionTimeout, int readTimeout) throws IOException {
+        //        if(serverStatusUtil.isFailed()){
 //            throw new IOException("Server Unavailable");
 //        }
 
@@ -70,9 +69,9 @@ public class SocketMessageUtil {
         try(Socket socket = new Socket()){
 
             // setting connection timeout
-            socket.connect(new InetSocketAddress("localhost", targetPort), socketConfig.getConnectionTimeout());
+            socket.connect(new InetSocketAddress("localhost", targetPort), connectionTimeout);
             // setting timeout for receiving ack
-            socket.setSoTimeout(socketConfig.getReadTimeout());
+            socket.setSoTimeout(readTimeout);
 
             ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
             ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
@@ -106,6 +105,10 @@ public class SocketMessageUtil {
         }
         if(ackMessageWrapper == null) throw new IOException("Service Unavailable");
         return ackMessageWrapper;
+    }
+
+    public AckMessageWrapper sendMessageToServer(int targetPort, MessageWrapper message) throws IOException {
+        return sendMessageToServer(targetPort, message, socketConfig.getConnectionTimeout(), socketConfig.getReadTimeout());
     }
 
     public CompletableFuture<List<AckMessageWrapper>> broadcast(MessageWrapper messageWrapper, List<Integer> PORT_POOL) throws IOException{
@@ -253,6 +256,20 @@ public class SocketMessageUtil {
 
                         Request request = message.getRequest();
                         log.info("Received verified request from port {}: {}", message.getFromPort(), request);
+                        if(!request.verifyMessage(keyConfig.getPublicKeyStore().get(request.getClientId()))){
+                            log.error("Request cannot be verified, rejecting: {}", request);
+
+                            AckMessageWrapper ackMessageWrapper = AckMessageWrapper.builder()
+                                    .type(AckMessageWrapper.MessageType.CLIENT_REPLY)
+                                    .clientReply(null)
+                                    .fromPort(message.getToPort())
+                                    .toPort(message.getFromPort())
+                                    .build();
+
+                            ackMessageWrapper.signMessage(keyConfig.getPrivateKey());
+
+                            out.writeObject(ackMessageWrapper);
+                        }
 
                         // IF I'M THE LEADER
                         // RUN PBFT
@@ -261,13 +278,31 @@ public class SocketMessageUtil {
 
                         if(request.getCurrentView() != socketService.getCurrentView()) {
 
-                            ClientReply clientReply = ClientReply.builder()
-                                    .currentView(socketService.getCurrentView())
-                                    .timestamp(request.getTimestamp())
-                                    .requestDigest(request.getHash())
-                                    .approved(false)
-                                    .finalBalance(-1)
+                            log.error("Views don't match: current {}, request {}", socketService.getCurrentView(), request.getCurrentView());
+
+//                          ClientReply clientReply = ClientReply.builder()
+//                                    .currentView(socketService.getCurrentView())
+//                                    .timestamp(request.getTimestamp())
+//                                    .requestDigest(request.getHash())
+//                                    .approved(false)
+//                                    .finalBalance(-1)
+//                                    .build();
+
+                            AckMessageWrapper ackMessageWrapper = AckMessageWrapper.builder()
+                                    .type(AckMessageWrapper.MessageType.CLIENT_REPLY)
+                                    .clientReply(null)
+                                    .fromPort(message.getToPort())
+                                    .toPort(message.getFromPort())
                                     .build();
+
+                            ackMessageWrapper.signMessage(keyConfig.getPrivateKey());
+
+                            out.writeObject(ackMessageWrapper);
+
+                        }
+
+                        else if(socketService.getAssignedPort() == socketService.getLeader(request.getCurrentView())) {
+                            ClientReply clientReply = userAccountController.transact(request).getBody();
 
                             AckMessageWrapper ackMessageWrapper = AckMessageWrapper.builder()
                                     .type(AckMessageWrapper.MessageType.CLIENT_REPLY)
@@ -280,33 +315,25 @@ public class SocketMessageUtil {
 
                             out.writeObject(ackMessageWrapper);
 
+                            log.info("Sent signed clientReply to server {}", ackMessageWrapper.getToPort());
+
+                            out.flush();
+                        }
+                        else {
+                            log.error("Request: {} forwarded to wrong leader, rejecting", request);
+
+                            AckMessageWrapper ackMessageWrapper = AckMessageWrapper.builder()
+                                    .type(AckMessageWrapper.MessageType.CLIENT_REPLY)
+                                    .clientReply(null)
+                                    .fromPort(message.getToPort())
+                                    .toPort(message.getFromPort())
+                                    .build();
+
+                            ackMessageWrapper.signMessage(keyConfig.getPrivateKey());
+
+                            out.writeObject(ackMessageWrapper);
                         }
 
-                        if(socketService.getCurrentLeader() == socketService.getLeader(request.getCurrentView())) {
-                            ClientReply clientReply = userAccountController.transact(request).getBody();
-                        }
-
-                        // SEND REPLY BACK TO THE SERVER
-                        // FROM WHOM YOU GOT THE REQUEST
-
-                        pbftService.prePrepare(request);
-
-                        Reply reply = null;
-
-                        AckMessageWrapper ackMessageWrapper = AckMessageWrapper.builder()
-                                .type(AckMessageWrapper.MessageType.REPLY)
-                                .reply(reply)
-                                .fromPort(message.getToPort())
-                                .toPort(message.getFromPort())
-                                .build();
-
-                        ackMessageWrapper.signMessage(keyConfig.getPrivateKey());
-
-                        out.writeObject(ackMessageWrapper);
-
-                        log.info("Sent signed reply to server {}: {}", ackMessageWrapper.getToPort(), reply);
-
-                        out.flush();
                     }
                     break;
                     case PRE_PREPARE:{

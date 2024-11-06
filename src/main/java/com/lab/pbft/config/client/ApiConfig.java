@@ -21,7 +21,7 @@ public class ApiConfig {
 
     private Integer apiPort = null;
 
-    private Integer currentView = 1;
+    private Integer currentView = 2;
 
     public int getCurrentLeader() {
         return (currentView-1)%serverPopulation+portUtil.basePort();

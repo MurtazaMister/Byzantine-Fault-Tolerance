@@ -127,8 +127,6 @@ public class Execute {
 
                 ackMessageWrapperList.add(selfAck);
 
-                log.info("AckMessageWrapperList: {}", ackMessageWrapperList);
-
                 for(AckMessageWrapper ackMessageWrapper : ackMessageWrapperList) {
                     if(!ackMessageWrapper.verifyMessage(keyConfig.getPublicKeyStore().get(ackMessageWrapper.getFromPort()))) {
                         log.error("Invalid signature for prepare message: {}", ackMessageWrapper);

@@ -35,8 +35,7 @@ public class Request implements Serializable {
     @JsonIgnore
     public String getHash() throws NoSuchAlgorithmException {
         StringBuilder hash = new StringBuilder();
-        hash.append(currentView)
-                .append(clientId)
+        hash.append(clientId)
                 .append(receiverId)
                 .append(amount)
                 .append(timestamp);

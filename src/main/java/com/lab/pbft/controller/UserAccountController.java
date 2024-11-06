@@ -17,9 +17,11 @@ import com.lab.pbft.util.PortUtil;
 import com.lab.pbft.util.ServerStatusUtil;
 import com.lab.pbft.util.SocketMessageUtil;
 import com.lab.pbft.util.Stopwatch;
+import com.lab.pbft.wrapper.AckMessageWrapper;
 import com.lab.pbft.wrapper.MessageWrapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -59,6 +61,12 @@ public class UserAccountController {
     @Autowired
     @Lazy
     private ReplyLogRepository replyLogRepository;
+
+    @Value("${socket.pbft.connection.timeout}")
+    private int pbftConnectionTimeout;
+
+    @Value("${socket.pbft.read.timeout}")
+    private int pbftReadTimeout;
 
     @GetMapping("/getId")
     @Transactional
@@ -147,9 +155,8 @@ public class UserAccountController {
                         .request(request)
                         .build();
 
-                socketMessageUtil.sendMessageToServer(toPort, messageWrapper);
-
-                log.info("Sent message to incorrect leader, forwarding");
+                AckMessageWrapper ack = null;
+                ack = socketMessageUtil.sendMessageToServer(toPort, messageWrapper, pbftConnectionTimeout, pbftReadTimeout);
 
                 // WAIT FOR REPLY AND SEND TO CLIENT WHO'S WAITING
 
@@ -160,8 +167,20 @@ public class UserAccountController {
                 LocalDateTime currentTime = LocalDateTime.now();
                 log.info("{}", Stopwatch.getDuration(startTime, currentTime, "Transaction"));
 
-                return ResponseEntity.ok(null);
-
+                if(ack != null){
+                    if(ack.verifyMessage(keyConfig.getPublicKeyStore().get(ack.getFromPort()))){
+                        return ResponseEntity.ok(ack.getClientReply());
+                    }
+                    else {
+                        log.error("Invalid clientRequest received from leader, returning null");
+                        return null;
+                    }
+                }
+                else{
+                    // No reply from leader, start VIEW CHANGE
+                    log.error("Begin view change, unstable leader detected");
+                    return null;
+                }
             }
             else {
                 log.info("Received verified request: {} : {} -> {}", request.getAmount(), request.getClientId(), request.getReceiverId());
