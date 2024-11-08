@@ -39,25 +39,33 @@ public class ServerController {
     }
 
     @GetMapping("/fail")
-    public ResponseEntity<Boolean> failServer(@RequestParam(required = false) Integer port){
+    public ResponseEntity<Boolean> failServer(@RequestParam(required = false) Integer port, @RequestParam(required = false, defaultValue = "false") Boolean failed, @RequestParam(required = false, defaultValue = "false") Boolean byzantine){
 
 //        if(serverStatusUtil.isFailed()) return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
 
         if(port == null){
-            serverStatusUtil.setFailed(true);
-            log.info("{}: Server down", socketService.getAssignedPort());
-            return ResponseEntity.ok(Boolean.valueOf(serverStatusUtil.isFailed()));
+
+            serverStatusUtil.setFailed(failed);
+            serverStatusUtil.setByzantine(byzantine);
+
+            log.info("{}: Server failed={}, infected={}", socketService.getAssignedPort(), failed, byzantine);
+            return (failed)?ResponseEntity.ok(serverStatusUtil.isFailed()):ResponseEntity.ok(serverStatusUtil.isByzantine());
         }
         else if(port == socketService.getAssignedPort()){
-            serverStatusUtil.setFailed(true);
-            log.info("{}: Server down", socketService.getAssignedPort());
-            return ResponseEntity.ok(Boolean.valueOf(serverStatusUtil.isFailed()));
+
+            serverStatusUtil.setFailed(failed);
+            serverStatusUtil.setByzantine(byzantine);
+
+            log.info("{}: Server failed={}, infected={}", socketService.getAssignedPort(), failed, byzantine);
+            return (failed)?ResponseEntity.ok(serverStatusUtil.isFailed()):ResponseEntity.ok(serverStatusUtil.isByzantine());
         }
         else{
             try{
-                log.info("Sending fail message to server {}", port);
+                log.info("Sending fail/infect message to server {}", port);
+
                 ServerStatusUpdate serverStatusUpdate = ServerStatusUpdate.builder()
-                        .failServer(true)
+                        .failServer(failed)
+                        .byzantineServer(byzantine)
                         .build();
 
                 MessageWrapper socketMessageWrapper = MessageWrapper.builder()
@@ -68,7 +76,10 @@ public class ServerController {
                         .build();
 
                 AckMessageWrapper ackMessageWrapper = socketMessageUtil.sendMessageToServer(port, socketMessageWrapper);
-                return ResponseEntity.ok(ackMessageWrapper.getAckServerStatusUpdate().isServerFailed());
+
+                return (failed)?ResponseEntity.ok(ackMessageWrapper.getAckServerStatusUpdate().isServerFailed()):
+                        ResponseEntity.ok(ackMessageWrapper.getAckServerStatusUpdate().isServerByzantine());
+
             } catch (IOException e) {
                 return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
             }
@@ -76,16 +87,22 @@ public class ServerController {
     }
 
     @GetMapping("/resume")
-    public ResponseEntity<Boolean> resumeServer(@RequestParam(required = false) Integer port){
+    public ResponseEntity<Boolean> resumeServer(@RequestParam(required = false) Integer port, @RequestParam(required = false, defaultValue = "false") Boolean failed, @RequestParam(required = false, defaultValue = "false") Boolean byzantine){
         if(port == null){
-            serverStatusUtil.setFailed(false);
-            log.info("{}: Server up & running", socketService.getAssignedPort());
-            return ResponseEntity.ok(Boolean.valueOf(!serverStatusUtil.isFailed()));
+
+            serverStatusUtil.setFailed(failed);
+            serverStatusUtil.setByzantine(byzantine);
+
+            log.info("{}: Server failed={}, infected={}", socketService.getAssignedPort(), failed, byzantine);
+            return (!failed)?ResponseEntity.ok(!serverStatusUtil.isFailed()):ResponseEntity.ok(!serverStatusUtil.isByzantine());
         }
         else if(port == socketService.getAssignedPort()){
-            serverStatusUtil.setFailed(false);
-            log.info("{}: Server up & running", socketService.getAssignedPort());
-            return ResponseEntity.ok(Boolean.valueOf(!serverStatusUtil.isFailed()));
+
+            serverStatusUtil.setFailed(failed);
+            serverStatusUtil.setByzantine(byzantine);
+
+            log.info("{}: Server failed={}, infected={}", socketService.getAssignedPort(), failed, byzantine);
+            return (!failed)?ResponseEntity.ok(!serverStatusUtil.isFailed()):ResponseEntity.ok(!serverStatusUtil.isByzantine());
         }
         else{
 
@@ -93,7 +110,8 @@ public class ServerController {
 
             try{
                 ServerStatusUpdate serverStatusUpdate = ServerStatusUpdate.builder()
-                        .failServer(false)
+                        .failServer(failed)
+                        .byzantineServer(byzantine)
                         .build();
 
                 MessageWrapper socketMessageWrapper = MessageWrapper.builder()
@@ -104,8 +122,9 @@ public class ServerController {
                         .build();
 
                 AckMessageWrapper ackMessageWrapper = socketMessageUtil.sendMessageToServer(port, socketMessageWrapper);
-                log.info("Sending resume message to server {}", port);
-                return ResponseEntity.ok(!ackMessageWrapper.getAckServerStatusUpdate().isServerFailed());
+                log.info("Sending resume/disinfect message to server {}", port);
+                return (!failed)?ResponseEntity.ok(!ackMessageWrapper.getAckServerStatusUpdate().isServerFailed()):
+                        ResponseEntity.ok(!ackMessageWrapper.getAckServerStatusUpdate().isServerByzantine());
             }
             catch (IOException e){
                 return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();

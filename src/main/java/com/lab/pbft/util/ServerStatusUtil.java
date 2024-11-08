@@ -26,6 +26,8 @@ public class ServerStatusUtil {
 
     private boolean failed = false;
 
+    private boolean byzantine = false;
+
     private boolean viewChangeTransition = false;
 
     @Autowired

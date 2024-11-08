@@ -11,5 +11,7 @@ import java.io.Serializable;
 public class ServerStatusUpdate implements Serializable {
     private static final long serialVersionUID = 1L;
 
-    private boolean failServer;
+    private boolean failServer = false;
+
+    private boolean byzantineServer = false;
 }

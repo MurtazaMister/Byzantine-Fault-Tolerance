@@ -18,9 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.*;
 import org.springframework.web.util.UriComponentsBuilder;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -100,7 +98,9 @@ public class ApiService {
         catch(Exception e){
             log.trace(e.getMessage());
         }
-        return null;
+        return ClientReply.builder()
+                .currentView(-1)
+                .build();
     }
 
     public List<AckMessageWrapper> retransact(Request request)  {
@@ -199,13 +199,43 @@ public class ApiService {
         return -1;
     }
 
+    public void byzantineServer(Integer port, String url){
+        log.info("Sending req: {} {}", url, (port!=null)?" for port "+port:"");
+        Boolean byzantine = false;
+
+        try{
+            if(port == null || port.equals(apiConfig.getApiPort())) byzantine = restTemplate.getForObject(UriComponentsBuilder.fromHttpUrl(url).queryParam("byzantine",true).toUriString(), Boolean.class);
+            else byzantine = restTemplate.getForObject(UriComponentsBuilder.fromHttpUrl(url).queryParam("port", port).queryParam("byzantine", true).toUriString(), Boolean.class);
+
+            log.info("Server at port {}'s status = {}", (port!=null)?port:(apiConfig.getApiPort()-offset), (byzantine)?"infected":"disinfected");
+        }
+        catch (HttpServerErrorException e) {
+            if(e.getStatusCode() == HttpStatus.SERVICE_UNAVAILABLE){
+                log.error("Service unavailable : {}", e.getMessage());
+            } else {
+                log.error("Server error: {}", e.getMessage());
+            }
+        }
+        catch (HttpClientErrorException e){
+            log.error(e.getMessage());
+        }
+        catch (Exception e) {
+            log.error(e.getMessage());
+        }
+    }
+
+    public void byzantineServer(Integer port){
+        String url = apiConfig.getRestServerUrlWithPort()+"/server/fail";
+        byzantineServer(port, url);
+    }
+
     public void failServer(Integer port, String url){
         log.info("Sending req: {} {}", url, (port!=null)?" for port "+port:"");
         Boolean failed = false;
 
         try{
-            if(port == null || port.equals(apiConfig.getApiPort())) failed = restTemplate.getForObject(UriComponentsBuilder.fromHttpUrl(url).toUriString(), Boolean.class);
-            else failed = restTemplate.getForObject(UriComponentsBuilder.fromHttpUrl(url).queryParam("port", port).toUriString(), Boolean.class);
+            if(port == null || port.equals(apiConfig.getApiPort())) failed = restTemplate.getForObject(UriComponentsBuilder.fromHttpUrl(url).queryParam("failed", true).toUriString(), Boolean.class);
+            else failed = restTemplate.getForObject(UriComponentsBuilder.fromHttpUrl(url).queryParam("port", port).queryParam("failed", true).toUriString(), Boolean.class);
 
             log.info("Server at port {}'s status = {}", (port!=null)?port:(apiConfig.getApiPort()-offset), (failed)?"failed":"up & running");
         }

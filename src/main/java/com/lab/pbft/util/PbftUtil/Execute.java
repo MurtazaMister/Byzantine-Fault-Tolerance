@@ -214,7 +214,7 @@ public class Execute {
             previousLog = (previousSequenceNumber > 0) ? (logRepository.findBySequenceNumber(previousSequenceNumber).orElse(null)) : null;
         }
 
-            if(previousLog == null || (previousLog!=null && previousLog.getType().equals(Log.Type.EXECUTED))) {
+            if(previousLog == null || (previousLog!=null && (previousLog.getType().equals(Log.Type.EXECUTED) || previousLog.getType().equals(Log.Type.PRE_PREPARE)))) {
 
 
                 long senderId = prePrepare.getRequest().getClientId();

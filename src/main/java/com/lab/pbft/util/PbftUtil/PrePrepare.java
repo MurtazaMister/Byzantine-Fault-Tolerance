@@ -58,7 +58,9 @@ public class PrePrepare {
 
     public ClientReply prePrepare(Request request) {
         if(serverStatusUtil.isFailed() || serverStatusUtil.isViewChangeTransition()) {
-            return null;
+            return ClientReply.builder()
+                    .currentView(-1)
+                    .build();
         }
 
         LocalDateTime startTime = LocalDateTime.now();
@@ -175,7 +177,7 @@ public class PrePrepare {
                     log.info("Received at least {} signatures, moving to commit", threshold);
                 }
 
-                return pbftService.commit(dbLog, prePrepare, signatures);
+                return (!serverStatusUtil.isByzantine())?pbftService.commit(dbLog, prePrepare, signatures): ClientReply.builder().currentView(-1).build();
 
             }
             catch(InterruptedException | ExecutionException e){

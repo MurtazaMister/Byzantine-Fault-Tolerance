@@ -252,7 +252,7 @@ public class SocketMessageUtil {
                     }
                     break;
                     case REQUEST: {
-                        if(serverStatusUtil.isFailed() || serverStatusUtil.isViewChangeTransition()) return;
+                        if(serverStatusUtil.isFailed() || serverStatusUtil.isByzantine()  || serverStatusUtil.isViewChangeTransition()) return;
 
                         Request request = message.getRequest();
                         log.info("Received verified request from port {}: {}", message.getFromPort(), request);
@@ -337,26 +337,26 @@ public class SocketMessageUtil {
                     }
                     break;
                     case PRE_PREPARE:{
-                        if(serverStatusUtil.isFailed() || serverStatusUtil.isViewChangeTransition()) return;
+                        if(serverStatusUtil.isFailed() || serverStatusUtil.isByzantine() || serverStatusUtil.isViewChangeTransition()) return;
                         log.info("Received verified pre-prepare from port {}: {}", message.getFromPort(), message.getPrePrepare());
                         pbftService.prepare(in, out, message);
                     }
                     break;
                     case COMMIT:{
-                        if(serverStatusUtil.isFailed() || serverStatusUtil.isViewChangeTransition()) return;
+                        if(serverStatusUtil.isFailed() || serverStatusUtil.isByzantine()  || serverStatusUtil.isViewChangeTransition()) return;
                         log.info("Received verified commit message from port {}: {}", message.getFromPort(), message.getCommit());
                         pbftService.ackCommit(in, out, message);
                     }
                     break;
                     case EXECUTE:{
-                        if(serverStatusUtil.isFailed() || serverStatusUtil.isViewChangeTransition()) return;
+                        if(serverStatusUtil.isFailed() || serverStatusUtil.isByzantine()  || serverStatusUtil.isViewChangeTransition()) return;
                         log.info("Received verified execute message from port {}: {}", message.getFromPort(), message.getExecute());
                         pbftService.ackExecute(in, out, message);
                     }
                     break;
                     case VIEW_CHANGE: {
                         log.info("Received verified view_change message from port {}: {}", message.getFromPort(), message.getViewChange());
-                        if(serverStatusUtil.isFailed()) return;
+                        if(serverStatusUtil.isFailed() || serverStatusUtil.isByzantine() ) return;
 
                         pbftService.newView(in, out, message);
 
@@ -364,7 +364,7 @@ public class SocketMessageUtil {
                     break;
                     case NEW_VIEW: {
                         log.info("Received verified new_view message from port {}: {}", message.getFromPort(), message.getNewView());
-                        if(serverStatusUtil.isFailed()) return;
+                        if(serverStatusUtil.isFailed() || serverStatusUtil.isByzantine() ) return;
 
                         AckMessage ackMessage = AckMessage.builder()
                                 .message("Received NEW_VIEW")

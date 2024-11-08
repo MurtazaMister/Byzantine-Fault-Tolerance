@@ -225,7 +225,7 @@ public class UserAccountController {
 
     @PostMapping("/rerequest")
     public ResponseEntity<Reply> retransact(@RequestBody Request request) {
-        if(serverStatusUtil.isFailed() || serverStatusUtil.isViewChangeTransition()) return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
+        if(serverStatusUtil.isFailed() || serverStatusUtil.isByzantine() || serverStatusUtil.isViewChangeTransition()) return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
         LocalDateTime startTime = LocalDateTime.now();
         try {
 

@@ -169,6 +169,7 @@ public class ClientService {
                         - e (exit)
                         - f (fail server) <port (optional)>
                         - r (resume server) <port (optional)>
+                        - i (infect/byzantine server) <port (optional)>
                         - // x (execute test file) <path (optional)>
                         """, username));
                 input = reader.readLine();
@@ -203,6 +204,15 @@ public class ClientService {
                             }
                             else{
                                 apiService.resumeServer(null);
+                            }
+                            break;
+                        case "i":
+                            if(parts.length > 1){
+                                int port = Integer.parseInt(parts[1]);
+                                apiService.byzantineServer(port);
+                            }
+                            else{
+                                apiService.byzantineServer(null);
                             }
                             break;
                         case "s":

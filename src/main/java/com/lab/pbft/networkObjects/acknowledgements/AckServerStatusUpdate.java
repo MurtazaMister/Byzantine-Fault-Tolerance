@@ -12,4 +12,6 @@ public class AckServerStatusUpdate implements Serializable {
     private static final long serialVersionUID = 1L;
 
     private boolean serverFailed;
+
+    private boolean serverByzantine;
 }
