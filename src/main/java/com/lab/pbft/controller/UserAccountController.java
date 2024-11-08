@@ -253,17 +253,16 @@ public class UserAccountController {
                     log.info("Executing re-transact request");
                     ClientReply clientReply = transact(request).getBody();
                 }
-                else {
-                    int tries = (pbftReadTimeout)/500;
 
-                    while(tries-->0){
-                        if(!replyLogRepository.existsByTimestamp(request.getTimestamp())) {
-                            log.info("Sleeping until reply gets available");
-                            Thread.sleep(500);
-                        }
-                        else{
-                            break;
-                        }
+                int tries = (pbftReadTimeout)/500;
+
+                while(tries-->0){
+                    if(!replyLogRepository.existsByTimestamp(request.getTimestamp())) {
+                        log.info("Sleeping until reply gets available");
+                        Thread.sleep(500);
+                    }
+                    else{
+                        break;
                     }
                 }
 

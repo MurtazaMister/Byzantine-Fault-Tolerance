@@ -23,6 +23,12 @@ public class ApiConfig {
 
     private Integer currentView = 1;
 
+    public void setCurrentView(int currentView){
+        this.currentView = currentView;
+        this.apiPort = getCurrentLeader()+offset;
+        this.restServerUrlWithPort = (restServerUrl + ":" + this.apiPort);
+    }
+
     public int getCurrentLeader() {
         return (currentView-1)%serverPopulation+portUtil.basePort();
     }

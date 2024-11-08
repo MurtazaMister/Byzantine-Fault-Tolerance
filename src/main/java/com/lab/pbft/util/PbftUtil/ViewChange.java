@@ -216,7 +216,7 @@ public class ViewChange {
                 }
                 else{
 
-                    if(newView.listViewChange.get(viewChange.getView()).isEmpty()) newView.listViewChange.put(viewChange.getView(), new ArrayList<>());
+                    if(!newView.listViewChange.containsKey(viewChange.getView())) newView.listViewChange.put(viewChange.getView(), new ArrayList<>());
                     newView.listViewChange.get(viewChange.getView()).add(viewChange);
 
                     int tries2 = (viewChangeTimeout)/100;
