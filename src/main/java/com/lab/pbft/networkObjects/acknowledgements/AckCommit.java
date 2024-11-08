@@ -32,8 +32,7 @@ public class AckCommit implements Serializable {
     @JsonIgnore
     public String getHash() throws NoSuchAlgorithmException {
         StringBuilder hash = new StringBuilder();
-        hash.append(currentView)
-                .append(sequenceNumber)
+        hash.append(sequenceNumber)
                 .append(requestDigest);
 
         MessageDigest digest = MessageDigest.getInstance("SHA-256");

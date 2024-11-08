@@ -25,6 +25,9 @@ public class ServerStatusUtil {
     private PortUtil portUtil;
 
     private boolean failed = false;
+
+    private boolean viewChangeTransition = false;
+
     @Autowired
     private RestTemplate restTemplate;
     @Value("${rest.server.url}")

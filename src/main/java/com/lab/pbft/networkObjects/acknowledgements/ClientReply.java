@@ -37,8 +37,7 @@ public class ClientReply implements Serializable {
     @JsonIgnore
     public String getHash() throws NoSuchAlgorithmException {
         StringBuilder hash = new StringBuilder();
-        hash.append(currentView)
-                .append(timestamp)
+        hash.append(timestamp)
                 .append(requestDigest)
                 .append(finalBalance)
                 .append(approved);

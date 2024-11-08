@@ -129,7 +129,7 @@ public class Execute {
 
                 for(AckMessageWrapper ackMessageWrapper : ackMessageWrapperList) {
                     if(!ackMessageWrapper.verifyMessage(keyConfig.getPublicKeyStore().get(ackMessageWrapper.getFromPort()))) {
-                        log.error("Invalid signature for prepare message: {}", ackMessageWrapper);
+                        log.error("Invalid signature for REPLY message: {}", ackMessageWrapper);
                         continue;
                     }
 

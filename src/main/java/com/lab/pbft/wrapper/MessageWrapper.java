@@ -1,5 +1,6 @@
 package com.lab.pbft.wrapper;
 
+import com.lab.pbft.networkObjects.acknowledgements.NewView;
 import com.lab.pbft.networkObjects.communique.*;
 import lombok.*;
 
@@ -20,7 +21,9 @@ public class MessageWrapper implements Serializable {
         REQUEST,
         PRE_PREPARE,
         COMMIT,
-        EXECUTE
+        EXECUTE,
+        VIEW_CHANGE,
+        NEW_VIEW
     }
 
     public static MessageWrapper from(MessageWrapper messageWrapper){
@@ -34,6 +37,8 @@ public class MessageWrapper implements Serializable {
                 .prePrepare(messageWrapper.getPrePrepare())
                 .commit(messageWrapper.getCommit())
                 .execute(messageWrapper.getExecute())
+                .viewChange(messageWrapper.getViewChange())
+                .newView(messageWrapper.getNewView())
                 .build();
     }
     public String getHash() throws NoSuchAlgorithmException {
@@ -46,7 +51,9 @@ public class MessageWrapper implements Serializable {
                 .append(request)
                 .append(prePrepare)
                 .append(commit)
-                .append(execute);
+                .append(execute)
+                .append(viewChange)
+                .append(newView);
 
         MessageDigest digest = MessageDigest.getInstance("SHA-256");
 
@@ -68,6 +75,8 @@ public class MessageWrapper implements Serializable {
     private PrePrepare prePrepare;
     private Commit commit;
     private Execute execute;
+    private ViewChange viewChange;
+    private NewView newView;
 
     private byte[] signature;
 

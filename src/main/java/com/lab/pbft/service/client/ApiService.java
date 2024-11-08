@@ -80,11 +80,19 @@ public class ApiService {
 
             return ClientReply.builder()
                     .currentView(-1)
-            .build();
+                    .build();
 
         }
         catch (HttpServerErrorException e) {
-            log.error(e.getMessage());
+            // Byzantine server | Failed server
+            if(e.getStatusCode() == HttpStatus.SERVICE_UNAVAILABLE){
+                log.error("Service unavailable : {}", e.getMessage());
+                return ClientReply.builder()
+                        .currentView(-1)
+                        .build();
+            } else {
+                log.error("Server error: {}", e.getMessage());
+            }
         }
         catch (HttpClientErrorException e){
             log.error(e.getMessage());
@@ -138,7 +146,7 @@ public class ApiService {
 
         }
         catch (ResourceAccessException e) {
-            log.warn("Timeout occured, broadcasting message");
+            log.warn("Timeout occurred while broadcasting message");
             // !!!!!!!!!
             // !!!!!!!!!
             // !!!!!!!!!
@@ -196,7 +204,7 @@ public class ApiService {
         Boolean failed = false;
 
         try{
-            if(port == null) failed = restTemplate.getForObject(UriComponentsBuilder.fromHttpUrl(url).toUriString(), Boolean.class);
+            if(port == null || port.equals(apiConfig.getApiPort())) failed = restTemplate.getForObject(UriComponentsBuilder.fromHttpUrl(url).toUriString(), Boolean.class);
             else failed = restTemplate.getForObject(UriComponentsBuilder.fromHttpUrl(url).queryParam("port", port).toUriString(), Boolean.class);
 
             log.info("Server at port {}'s status = {}", (port!=null)?port:(apiConfig.getApiPort()-offset), (failed)?"failed":"up & running");

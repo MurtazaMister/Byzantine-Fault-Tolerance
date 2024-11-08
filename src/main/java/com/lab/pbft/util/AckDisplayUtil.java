@@ -47,6 +47,10 @@ public class AckDisplayUtil {
                     log.info("Received verified CLIENT_REPLY from server {}", ackMessageWrapper.getFromPort());
                     break;
 
+                case NEW_VIEW:
+                    log.info("Received verified NEW_VIEW from server {}", ackMessageWrapper.getFromPort());
+                    break;
+
                 default:
                     log.error("Received verified, but unexpected ACK from server {}", ackMessageWrapper);
             }

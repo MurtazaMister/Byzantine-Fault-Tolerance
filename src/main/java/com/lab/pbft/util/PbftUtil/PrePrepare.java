@@ -57,15 +57,8 @@ public class PrePrepare {
     private LogRepository logRepository;
 
     public ClientReply prePrepare(Request request) {
-        if(serverStatusUtil.isFailed()) {
-            while(serverStatusUtil.isFailed()){
-                try {
-                    Thread.sleep(serverResumeDelay);
-                } catch (InterruptedException e) {
-                    log.error("Exception: {}", e.getMessage());
-                }
-                log.info("Sleeping for {}ms until server resumes", serverResumeDelay);
-            }
+        if(serverStatusUtil.isFailed() || serverStatusUtil.isViewChangeTransition()) {
+            return null;
         }
 
         LocalDateTime startTime = LocalDateTime.now();

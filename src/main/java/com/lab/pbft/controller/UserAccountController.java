@@ -3,11 +3,14 @@ package com.lab.pbft.controller;
 import com.lab.pbft.config.KeyConfig;
 import com.lab.pbft.config.client.ApiConfig;
 import com.lab.pbft.dto.ValidateUserDTO;
+import com.lab.pbft.model.primary.Log;
 import com.lab.pbft.model.primary.ReplyLog;
 import com.lab.pbft.model.primary.UserAccount;
 import com.lab.pbft.networkObjects.acknowledgements.ClientReply;
 import com.lab.pbft.networkObjects.acknowledgements.Reply;
 import com.lab.pbft.networkObjects.communique.Request;
+import com.lab.pbft.networkObjects.communique.ViewChange;
+import com.lab.pbft.repository.primary.LogRepository;
 import com.lab.pbft.repository.primary.ReplyLogRepository;
 import com.lab.pbft.repository.primary.UserAccountRepository;
 import com.lab.pbft.service.PbftService;
@@ -29,6 +32,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 @RestController
@@ -67,6 +72,9 @@ public class UserAccountController {
 
     @Value("${socket.pbft.read.timeout}")
     private int pbftReadTimeout;
+    @Autowired
+    @Lazy
+    private LogRepository logRepository;
 
     @GetMapping("/getId")
     @Transactional
@@ -124,6 +132,9 @@ public class UserAccountController {
 
     @PostMapping("/request")
     public ResponseEntity<ClientReply> transact(@RequestBody Request request) {
+
+        if(serverStatusUtil.isFailed() || serverStatusUtil.isViewChangeTransition()) return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
+
         LocalDateTime startTime = LocalDateTime.now();
         try {
 
@@ -132,6 +143,14 @@ public class UserAccountController {
                 LocalDateTime currentTime = LocalDateTime.now();
                 log.info("{}", Stopwatch.getDuration(startTime, currentTime, "Transaction"));
                 return ResponseEntity.badRequest().build();
+            }
+
+            ReplyLog replyLog = replyLogRepository.findById(request.getTimestamp()).orElse(null);
+            if(replyLog != null){
+                ClientReply clientReply = ClientReply.builder()
+                        .currentView(-1)
+                        .build();
+                return ResponseEntity.ok(clientReply);
             }
 
             UserAccount receiver = userAccountRepository.findById(request.getReceiverId()).orElse(null);
@@ -206,17 +225,53 @@ public class UserAccountController {
 
     @PostMapping("/rerequest")
     public ResponseEntity<Reply> retransact(@RequestBody Request request) {
+        if(serverStatusUtil.isFailed() || serverStatusUtil.isViewChangeTransition()) return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
         LocalDateTime startTime = LocalDateTime.now();
         try {
 
             ReplyLog previousReply = replyLogRepository.findById(request.getTimestamp()).orElse(null);
 
             if (previousReply == null) {
-                log.info("Reply not found, leader infected/down, view change");
+                log.info("Reply not found, leader byzantine/down, view change");
 
                 // VIEW CHANGE
                 // EXECUTE THE REQUEST AGAIN
                 // AFTER VIEW CHANGE
+
+                // Constructing a view change message
+                pbftService.viewChange();
+
+                // If i'm the new leader, execute the retransact request
+                // else forward to new leader to execute the retransact request
+                // chances are, leader is not changed, to take even current view as new view
+
+                // VIEW CHANGED
+                log.info("View changed to {}", socketService.getCurrentView());
+
+                // If I'm the new leader, I process the transaction
+                if(socketService.getAssignedPort() == socketService.getCurrentLeader()) {
+                    log.info("Executing re-transact request");
+                    ClientReply clientReply = transact(request).getBody();
+                }
+                else {
+                    int tries = (pbftReadTimeout)/500;
+
+                    while(tries-->0){
+                        if(!replyLogRepository.existsByTimestamp(request.getTimestamp())) {
+                            log.info("Sleeping until reply gets available");
+                            Thread.sleep(500);
+                        }
+                        else{
+                            break;
+                        }
+                    }
+                }
+
+                if(replyLogRepository.existsByTimestamp(request.getTimestamp())) {
+                    return ResponseEntity.ok(replyLogRepository.findByTimestamp(request.getTimestamp()).getReply());
+                }
+
+                return null;
 
             } else {
 

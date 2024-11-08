@@ -34,6 +34,12 @@ public class PbftService {
     private Execute execute;
     @Autowired
     private AckExecute ackExecute;
+    @Autowired
+    private ViewChange viewChange;
+    @Autowired
+    private NewView newView;
+    @Autowired
+    private NewViewProcess newViewProcess;
 
     public ClientReply prePrepare(Request request) { // Send prepare message to be signed
         return prePrepare.prePrepare(request);
@@ -57,6 +63,18 @@ public class PbftService {
 
     public void ackExecute(ObjectInputStream in, ObjectOutputStream out, MessageWrapper messageWrapper) throws Exception {
         ackExecute.ackExecute(in, out, messageWrapper);
+    }
+
+    public void viewChange() {
+        viewChange.viewChange();
+    }
+
+    public void newView(ObjectInputStream in, ObjectOutputStream out, MessageWrapper messageWrapper) throws Exception {
+        newView.newView(in, out, messageWrapper);
+    }
+
+    public void newViewProcess(com.lab.pbft.networkObjects.acknowledgements.NewView newView) {
+        newViewProcess.newViewProcess(newView);
     }
 
 }

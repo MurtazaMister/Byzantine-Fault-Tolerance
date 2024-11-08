@@ -3,6 +3,7 @@ package com.lab.pbft.repository.primary;
 import com.lab.pbft.model.primary.Log;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface LogRepository extends JpaRepository<Log, Long> {
@@ -12,5 +13,7 @@ public interface LogRepository extends JpaRepository<Log, Long> {
     boolean existsBySequenceNumber(Long sequenceNumber);
 
     Optional<Log> findBySequenceNumber(Long sequenceNumber);
+
+    List<Log> findAllByOrderBySequenceNumberAsc();
 
 }

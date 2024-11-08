@@ -267,13 +267,13 @@ public class ClientService {
                                     if (finalReply != null && signatureCount != 0) {
                                         System.out.println("Verified at least f+1 signatures in re-transact, received " + signatureCount + " signatures");
                                         System.out.println("Transaction status: "+((finalReply.isApproved())?"Approved":"Failed"));
-                                        System.out.println("Final balance = " + finalReply.getFinalBalance() + "\nAfter executing "+((finalReply.isApproved())?"approved":"failed")+" transaction " + request.getAmount() + " : " + request.getClientId() + " -> " + request.getReceiverId());
+                                        System.out.println("Final balance = $" + finalReply.getFinalBalance() + "\nAfter executing "+((finalReply.isApproved())?"approved":"failed")+" transaction $" + request.getAmount() + " : " + request.getClientId() + " -> " + request.getReceiverId());
                                         if(apiConfig.getCurrentView() != finalReply.getCurrentView()){
                                             System.out.println("View changed, current view: "+ finalReply.getCurrentView());
                                         }
                                         apiConfig.setCurrentView((int)finalReply.getCurrentView());
                                     } else {
-                                        System.out.println("Received unverified reply for transaction " + request.getAmount() + " : " + request.getClientId() + " -> " + request.getReceiverId());
+                                        System.out.println("Received unverified reply with only "+signatureCount+" signatures for transaction " + request.getAmount() + " : " + request.getClientId() + " -> " + request.getReceiverId());
                                     }
 
                                 }
@@ -296,7 +296,7 @@ public class ClientService {
                                         if (signatureCount >= threshold) {
                                             System.out.println("Verified at least f+1 signatures, received " + signatureCount + " signatures");
                                             System.out.println("Transaction status: "+((clientReply.isApproved())?"Approved":"Failed"));
-                                            System.out.println("Final balance = " + clientReply.getFinalBalance() + "\nAfter executing "+ ((clientReply.isApproved())?"approved":"failed") +" transaction " + request.getAmount() + " : " + request.getClientId() + " -> " + request.getReceiverId());
+                                            System.out.println("Final balance = $" + clientReply.getFinalBalance() + "\nAfter executing "+ ((clientReply.isApproved())?"approved":"failed") +" transaction $" + request.getAmount() + " : " + request.getClientId() + " -> " + request.getReceiverId());
                                             if(apiConfig.getCurrentView() != clientReply.getCurrentView()){
                                                 System.out.println("View changed, current view: "+ clientReply.getCurrentView());
                                             }

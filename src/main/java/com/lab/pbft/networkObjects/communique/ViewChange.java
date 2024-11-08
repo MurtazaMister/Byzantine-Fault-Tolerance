@@ -1,44 +1,53 @@
-package com.lab.pbft.wrapper;
+package com.lab.pbft.networkObjects.communique;
 
-import com.lab.pbft.networkObjects.acknowledgements.*;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.security.*;
 import java.util.Base64;
+import java.util.List;
+import java.util.Map;
 
-@Getter
-@Builder
-@Setter
 @Data
-public class AckMessageWrapper implements Serializable {
+@AllArgsConstructor
+@NoArgsConstructor
+@Builder
+public class ViewChange implements Serializable {
     private static final long serialVersionUID = 1L;
 
-    public enum MessageType {
-        ACK_MESSAGE,
-        ACK_SERVER_STATUS_UPDATE,
-        REPLY,
-        PREPARE,
-        ACK_COMMIT,
-        CLIENT_REPLY,
-        NEW_VIEW
+    private long fromNode;
+
+    private int view;
+
+    List<Bundle> bundles;
+
+    private byte[] signature;
+
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    @Builder
+    public static class Bundle implements Serializable {
+        private static final long serialVersionUID = 1L;
+
+        private long sequenceNumber;
+
+        private PrePrepare prePrepare;
+
+        private Map<Long, String> signatures;
+
+        private boolean approved;
     }
+
+    @JsonIgnore
     public String getHash() throws NoSuchAlgorithmException {
         StringBuilder hash = new StringBuilder();
-        hash.append(type)
-                .append(fromPort)
-                .append(toPort)
-                .append(ackMessage)
-                .append(ackServerStatusUpdate)
-                .append(reply)
-                .append(prepare)
-                .append(ackCommit)
-                .append(clientReply)
-                .append(newView);
+        hash.append(view);
 
         MessageDigest digest = MessageDigest.getInstance("SHA-256");
 
@@ -47,21 +56,7 @@ public class AckMessageWrapper implements Serializable {
         return Base64.getEncoder().encodeToString(hashBytes);
     }
 
-    private MessageType type;
-
-    private long fromPort;
-    private long toPort;
-
-    private AckMessage ackMessage;
-    private AckServerStatusUpdate ackServerStatusUpdate;
-    private Reply reply;
-    private Prepare prepare;
-    private AckCommit ackCommit;
-    private ClientReply clientReply;
-    private NewView newView;
-
-    private byte[] signature;
-
+    @JsonIgnore
     public void signMessage(PrivateKey privateKey) throws Exception {
         Signature signature = Signature.getInstance("SHA256withRSA");
         signature.initSign(privateKey);
@@ -70,6 +65,7 @@ public class AckMessageWrapper implements Serializable {
         this.signature = signature.sign();
     }
 
+    @JsonIgnore
     public boolean verifyMessage(PublicKey publicKey) throws Exception {
         Signature signature = Signature.getInstance("SHA256withRSA");
         signature.initVerify(publicKey);
@@ -77,4 +73,5 @@ public class AckMessageWrapper implements Serializable {
 
         return signature.verify(this.signature);
     }
+
 }

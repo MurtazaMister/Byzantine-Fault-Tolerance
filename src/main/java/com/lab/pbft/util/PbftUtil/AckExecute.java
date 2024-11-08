@@ -68,7 +68,7 @@ public class AckExecute {
             }
         }
 
-        int threshold = apiConfig.getServerPopulation() - (apiConfig.getServerPopulation()-1)/3;;
+        int threshold = apiConfig.getServerPopulation() - (apiConfig.getServerPopulation()-1)/3;
 
         if(verificationCount < threshold){
             log.error("Invalid signatures provided for commit messages, rejecting");
