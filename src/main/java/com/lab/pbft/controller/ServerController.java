@@ -1,6 +1,8 @@
 package com.lab.pbft.controller;
 
+import com.lab.pbft.model.primary.Log;
 import com.lab.pbft.networkObjects.communique.ServerStatusUpdate;
+import com.lab.pbft.repository.primary.LogRepository;
 import com.lab.pbft.service.SocketService;
 import com.lab.pbft.util.ServerStatusUtil;
 import com.lab.pbft.util.SocketMessageUtil;
@@ -9,6 +11,7 @@ import com.lab.pbft.wrapper.MessageWrapper;
 import com.lab.pbft.util.ServerStatusUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -17,6 +20,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.io.IOException;
+import java.util.List;
 
 @RestController
 @RequestMapping("/server")
@@ -31,6 +35,9 @@ public class ServerController {
 
     @Autowired
     private SocketMessageUtil socketMessageUtil;
+    @Autowired
+    @Lazy
+    private LogRepository logRepository;
 
     @GetMapping("/test")
     public ResponseEntity<Boolean> test() {
@@ -130,5 +137,10 @@ public class ServerController {
                 return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
             }
         }
+    }
+
+    @GetMapping("/logs")
+    public List<Log> getLogs(){
+        return logRepository.findAllByOrderBySequenceNumberAsc();
     }
 }

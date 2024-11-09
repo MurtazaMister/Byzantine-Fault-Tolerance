@@ -73,16 +73,20 @@ public class ServerStatusUtil {
         return finalPort+Integer.parseInt(offset);
     }
 
-    public void setServerStatuses(List<Integer> serverIds){ // 2, 3, 5
-        List<Integer> portsArray = portUtil.portPoolGenerator(); // 8081, 8082, 8083, 8084, 8085
-        List<Boolean> portStatusArray = new ArrayList<>();
+    public void setServerStatuses(List<Integer> activeServerIds, List<Integer> byzantineServerIds){ // 2, 3, 5
+        List<Integer> portsArray = portUtil.portPoolGenerator(); // 8081, 8082, 8083, 8084, 8085, 8086, 8087
+        List<Integer> portStatusArray = new ArrayList<>(); // 0 - good, 1 - failed, 2 - byzantine
 
         for(int port : portsArray) {
-            portStatusArray.add(false);
+            portStatusArray.add(1); // all failed
         }
 
-        for(int id : serverIds){
-            portStatusArray.set(id-1, true);
+        for(int id : activeServerIds){
+            portStatusArray.set(id-1, 0); // set activeServers alive
+        }
+
+        for(int id : byzantineServerIds){
+            portStatusArray.set(id-1, 2); // set byzantine
         }
 
         int activePort = getActiveServer();
@@ -94,29 +98,21 @@ public class ServerStatusUtil {
         int activeId = -1;
 
         for(int i = 0;i<portStatusArray.size();i++){
-            if(portsArray.get(i) != activeSocketPort){
-                if(portStatusArray.get(i)){
-                    // true - resume server
-                    apiService.resumeServer(portsArray.get(i), resumeUrl);
-                }
-                else{
-                    // false - fail server
-                    apiService.failServer(portsArray.get(i), failUrl);
-                }
+            if(portStatusArray.get(i) == 0){
+                // 0 - resume server
+                apiService.resumeServer(portsArray.get(i), resumeUrl);
+            }
+            else if(portStatusArray.get(i) == 1){
+                // 1 - fail server
+                apiService.failServer(portsArray.get(i), failUrl);
             }
             else{
-                activeId = i;
+                // 2 - infect server
+                apiService.byzantineServer(portsArray.get(i), failUrl);
             }
         }
 
-        if(!portStatusArray.get(activeId)){
-            apiService.failServer(activeSocketPort, failUrl);
-        }
-        else{
-            apiService.resumeServer(activeSocketPort, resumeUrl);
-        }
-
-        log.warn("Setting server statuses, true = active, false = fail");
+        log.warn("Setting server statuses, 0 = active, 1 = fail, 2 = byzantine");
         log.warn("{}",portsArray);
         log.warn("{}",portStatusArray);
 

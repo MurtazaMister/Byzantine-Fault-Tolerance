@@ -21,6 +21,7 @@ import com.lab.pbft.wrapper.AckMessageWrapper;
 import com.lab.pbft.wrapper.MessageWrapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 
@@ -60,6 +61,8 @@ public class Execute {
     @Autowired
     @Lazy
     private ReplyLogRepository replyLogRepository;
+    @Value("${previous.log.execution.wait}")
+    private int previousLogExecutionWait;
 
     public ClientReply execute(Log dbLog, com.lab.pbft.networkObjects.communique.PrePrepare prePrepare, Map<Long, String> signatures) {
 
@@ -214,8 +217,8 @@ public class Execute {
             previousLog = (previousSequenceNumber > 0) ? (logRepository.findBySequenceNumber(previousSequenceNumber).orElse(null)) : null;
         }
 
-            if(previousLog == null || (previousLog!=null && (previousLog.getType().equals(Log.Type.EXECUTED) || previousLog.getType().equals(Log.Type.PRE_PREPARE)))) {
-
+        while(true) {
+            if (previousLog == null || (previousLog != null && (previousLog.getType().equals(Log.Type.EXECUTED) || previousLog.getType().equals(Log.Type.PRE_PREPARE)))) {
 
                 long senderId = prePrepare.getRequest().getClientId();
                 long receiverId = prePrepare.getRequest().getReceiverId();
@@ -224,7 +227,7 @@ public class Execute {
                 UserAccount sender = userAccountRepository.findById(senderId).orElse(null);
                 UserAccount receiver = userAccountRepository.findById(receiverId).orElse(null);
 
-                if(sender.getBalance() >= amount) {
+                if (sender.getBalance() >= amount) {
                     sender.setBalance(sender.getBalance() - amount);
                     receiver.setBalance(receiver.getBalance() + amount);
 
@@ -244,8 +247,7 @@ public class Execute {
 
                     return selfReply;
 
-                }
-                else {
+                } else {
                     log.error("Insufficient balance with sender: {} to perform: {}", prePrepare.getRequest().getClientId(), prePrepare.getRequest());
                     log.error("Rejecting transaction");
 
@@ -263,11 +265,13 @@ public class Execute {
                     return selfReply;
                 }
 
-            }
+            } else {
 
-            else {
+                log.error("Previous logs not executed, waiting for {}ms until previous log executes", previousLogExecutionWait);
 
-                log.error("Previous logs not executed");
+                Thread.sleep(previousLogExecutionWait);
+
+                previousLog = logRepository.findBySequenceNumber(previousSequenceNumber).orElse(null);
                 // executorService.execute(() -> executeAllRequests(prePrepare));
 
                 // UNLIKELY CASE BUT HANDLE THIS
@@ -277,9 +281,8 @@ public class Execute {
                 // THEN COME SEQUENTIALLY TO THIS TO EXECUTE
                 // IF THOSE REQUESTS HAVE STILL NOT COMMITTED
                 // THEN RESTART PHASES FOR THOSE
-
-                return null;
             }
+        }
         }
 
 

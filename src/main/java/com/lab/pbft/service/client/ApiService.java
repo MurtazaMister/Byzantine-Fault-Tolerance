@@ -3,21 +3,25 @@ package com.lab.pbft.service.client;
 
 import com.lab.pbft.config.client.ApiConfig;
 import com.lab.pbft.dto.ValidateUserDTO;
+import com.lab.pbft.model.primary.Log;
 import com.lab.pbft.networkObjects.acknowledgements.ClientReply;
 import com.lab.pbft.networkObjects.acknowledgements.Reply;
 import com.lab.pbft.networkObjects.communique.Request;
+import com.lab.pbft.repository.primary.LogRepository;
 import com.lab.pbft.util.PortUtil;
 import com.lab.pbft.wrapper.AckMessageWrapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.*;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.*;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -336,5 +340,78 @@ public class ApiService {
         }
 
         return null;
+    }
+
+    public List<Log> getLogs(Integer port){
+        String url;
+        if(port == null) url = apiConfig.getRestServerUrlWithPort()+"/server/logs";
+        else {
+            url = apiConfig.getRestServerUrl() + ":" + (port) + "/server/logs";
+        }
+
+        List<Log> logs;
+
+        try{
+            logs = restTemplate.exchange(UriComponentsBuilder.fromHttpUrl(url)
+                    .toUriString(), HttpMethod.GET, null, new ParameterizedTypeReference<List<Log>>() {}
+            ).getBody();
+            return logs;
+        }
+        catch (HttpServerErrorException e) {
+            if(e.getStatusCode() == HttpStatus.SERVICE_UNAVAILABLE){
+                log.error("Service unavailable : {}", e.getMessage());
+            } else {
+                log.error("Server error: {}", e.getMessage());
+            }
+        }
+        catch (HttpClientErrorException e) {
+            log.error("Http error while fetching balance: {}", e.getStatusCode());
+        }
+        catch (ResourceAccessException e) {
+            log.error("Could not access server: {}", e.getMessage());
+        }
+        catch (Exception e) {
+            log.error("{}", e.getMessage());
+        }
+
+        return null;
+
+    }
+
+    public List<List<Long>> getAllBalances(){
+        List<Integer> ports = portUtil.portPoolGenerator();
+        ports.replaceAll(integer -> integer + offset);
+
+        List<List<Long>> balances = new ArrayList<>();
+
+        String url;
+        for(int port : ports){
+            url = apiConfig.getRestServerUrl() + ":" + (port) + "/user/balances";
+
+        try{
+            balances.add(restTemplate.exchange(UriComponentsBuilder.fromHttpUrl(url)
+                    .toUriString(), HttpMethod.GET, null, new ParameterizedTypeReference<List<Long>>() {}
+            ).getBody());
+        }
+        catch (HttpServerErrorException e) {
+            if(e.getStatusCode() == HttpStatus.SERVICE_UNAVAILABLE){
+                log.error("Service unavailable : {}", e.getMessage());
+            } else {
+                log.error("Server error: {}", e.getMessage());
+            }
+        }
+        catch (HttpClientErrorException e) {
+            log.error("Http error while fetching balance: {}", e.getStatusCode());
+        }
+        catch (ResourceAccessException e) {
+            log.error("Could not access server: {}", e.getMessage());
+        }
+        catch (Exception e) {
+            log.error("{}", e.getMessage());
+        }
+
+        }
+
+        return balances;
     }
 }

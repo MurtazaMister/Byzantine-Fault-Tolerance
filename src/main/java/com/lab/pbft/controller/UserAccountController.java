@@ -285,4 +285,14 @@ public class UserAccountController {
         }
         return ResponseEntity.ok(null);
     }
+
+    @GetMapping("/balances")
+    public List<Long> balances() {
+        List<UserAccount> users = userAccountRepository.findAllByOrderByIdAsc();
+        List<Long> ans = new ArrayList<>();
+        for(UserAccount user : users){
+            ans.add(user.getBalance());
+        }
+        return ans;
+    }
 }
