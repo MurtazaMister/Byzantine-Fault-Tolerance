@@ -10,6 +10,7 @@ import com.lab.pbft.networkObjects.acknowledgements.Reply;
 import com.lab.pbft.networkObjects.communique.Message;
 import com.lab.pbft.networkObjects.communique.Request;
 import com.lab.pbft.networkObjects.communique.ServerStatusUpdate;
+import com.lab.pbft.repository.primary.NewViewRepository;
 import com.lab.pbft.service.PbftService;
 import com.lab.pbft.service.SocketService;
 import com.lab.pbft.wrapper.AckMessageWrapper;
@@ -27,6 +28,8 @@ import java.net.Socket;
 import java.net.SocketTimeoutException;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 @Component
@@ -59,6 +62,11 @@ public class SocketMessageUtil {
     @Autowired
     @Lazy
     private UserAccountController userAccountController;
+    @Autowired
+    @Lazy
+    private NewViewRepository newViewRepository;
+
+    private final ExecutorService executorService = Executors.newFixedThreadPool(2);
 
     public AckMessageWrapper sendMessageToServer(int targetPort, MessageWrapper message, int connectionTimeout, int readTimeout) throws IOException {
         //        if(serverStatusUtil.isFailed()){
@@ -364,7 +372,14 @@ public class SocketMessageUtil {
                     break;
                     case NEW_VIEW: {
                         log.info("Received verified new_view message from port {}: {}", message.getFromPort(), message.getNewView());
-                        if(serverStatusUtil.isFailed() || serverStatusUtil.isByzantine() ) return;
+                        if(serverStatusUtil.isFailed() || serverStatusUtil.isByzantine() ) {
+                            MessageWrapper finalMessage = message;
+                            executorService.submit(() -> {
+                                log.info("Persisting new_view for view: {}", finalMessage.getNewView().getView());
+                                newViewRepository.save(com.lab.pbft.model.primary.NewView.toNewView(finalMessage.getNewView()));
+                            });
+                            return;
+                        }
 
                         AckMessage ackMessage = AckMessage.builder()
                                 .message("Received NEW_VIEW")

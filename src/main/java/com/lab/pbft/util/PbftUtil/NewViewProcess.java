@@ -6,6 +6,7 @@ import com.lab.pbft.model.primary.Log;
 import com.lab.pbft.model.primary.UserAccount;
 import com.lab.pbft.networkObjects.acknowledgements.NewView;
 import com.lab.pbft.repository.primary.LogRepository;
+import com.lab.pbft.repository.primary.NewViewRepository;
 import com.lab.pbft.repository.primary.UserAccountRepository;
 import com.lab.pbft.service.SocketService;
 import com.lab.pbft.util.ServerStatusUtil;
@@ -15,6 +16,8 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 @Component
 @Slf4j
@@ -40,6 +43,11 @@ public class NewViewProcess {
     @Autowired
     @Lazy
     private UserAccountRepository userAccountRepository;
+    @Autowired
+    @Lazy
+    private NewViewRepository newViewRepository;
+
+    private final ExecutorService executorService = Executors.newFixedThreadPool(2);
 
     private Log exists(List<Log> logs, int sequenceNumber) {
         for(Log log : logs) {
@@ -83,6 +91,11 @@ public class NewViewProcess {
         log.info("Verfied 2f+1 view change messages");
 
         processing = true;
+
+        executorService.submit(() -> {
+            log.info("Persisting new_view for view: {}", newView.getView());
+            newViewRepository.save(com.lab.pbft.model.primary.NewView.toNewView(newView));
+        });
 
         socketService.setCurrentView(newView.getView());
 
