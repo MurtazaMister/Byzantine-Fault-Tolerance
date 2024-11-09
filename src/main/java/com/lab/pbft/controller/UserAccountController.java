@@ -137,13 +137,15 @@ public class UserAccountController {
 
         LocalDateTime startTime = LocalDateTime.now();
         try {
-
             // Verify request
             if(request.getClientId() == request.getReceiverId() || !request.verifyMessage(keyConfig.getPublicKeyStore().get(request.getClientId()))){
                 LocalDateTime currentTime = LocalDateTime.now();
+                log.warn("Unverified request: {}, rejecting", request);
                 log.info("{}", Stopwatch.getDuration(startTime, currentTime, "Transaction"));
                 return ResponseEntity.badRequest().build();
             }
+
+            log.info("Received verified request: ${} : {} -> {}", request.getAmount(), request.getClientId(), request.getReceiverId());
 
             ReplyLog replyLog = replyLogRepository.findById(request.getTimestamp()).orElse(null);
             if(replyLog != null){
@@ -225,14 +227,25 @@ public class UserAccountController {
 
     @PostMapping("/rerequest")
     public ResponseEntity<Reply> retransact(@RequestBody Request request) {
+
         if(serverStatusUtil.isFailed() || serverStatusUtil.isByzantine() || serverStatusUtil.isViewChangeTransition()) return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
+
         LocalDateTime startTime = LocalDateTime.now();
+
         try {
+            if(request.getClientId() == request.getReceiverId() || !request.verifyMessage(keyConfig.getPublicKeyStore().get(request.getClientId()))){
+                LocalDateTime currentTime = LocalDateTime.now();
+                log.warn("Unverified request: {}, rejecting", request);
+                log.info("{}", Stopwatch.getDuration(startTime, currentTime, "Transaction"));
+                return ResponseEntity.badRequest().build();
+            }
+
+            log.info("Received retransact request: ${} : {} -> {}", request.getAmount(), request.getClientId(), request.getReceiverId());
 
             ReplyLog previousReply = replyLogRepository.findById(request.getTimestamp()).orElse(null);
 
             if (previousReply == null) {
-                log.info("Reply not found, leader byzantine/down, view change");
+                log.info("Reply not found for request ${} : {} -> {}, leader byzantine/down, view change", request.getAmount(), request.getClientId(), request.getReceiverId());
 
                 // VIEW CHANGE
                 // EXECUTE THE REQUEST AGAIN

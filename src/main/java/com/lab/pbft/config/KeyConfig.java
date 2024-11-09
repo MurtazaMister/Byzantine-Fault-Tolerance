@@ -91,7 +91,7 @@ public class KeyConfig {
         init();
     }
 
-    private PublicKey extractPublicKey(String key) throws Exception {
+    public PublicKey extractPublicKey(String key) throws Exception {
         byte[] keyBytes = Base64.getDecoder().decode(key);
         X509EncodedKeySpec spec = new X509EncodedKeySpec(keyBytes);
         KeyFactory keyFactory = KeyFactory.getInstance("RSA");

@@ -97,10 +97,10 @@ public class ApiService {
             }
         }
         catch (HttpClientErrorException e){
-            log.error(e.getMessage());
+            log.error("Client error: {}", e.getMessage());
         }
         catch(Exception e){
-            log.trace(e.getMessage());
+            log.error("Exception: {}", e.getMessage());
         }
         return ClientReply.builder()
                 .currentView(-1)
@@ -348,7 +348,7 @@ public class ApiService {
         else {
             url = apiConfig.getRestServerUrl() + ":" + (port) + "/server/logs";
         }
-
+        log.info("Sending req: {}", url);
         List<Log> logs;
 
         try{
@@ -380,14 +380,12 @@ public class ApiService {
 
     public List<List<Long>> getAllBalances(){
         List<Integer> ports = portUtil.portPoolGenerator();
-        ports.replaceAll(integer -> integer + offset);
 
         List<List<Long>> balances = new ArrayList<>();
 
         String url;
         for(int port : ports){
-            url = apiConfig.getRestServerUrl() + ":" + (port) + "/user/balances";
-
+            url = apiConfig.getRestServerUrl() + ":" + (port+offset) + "/user/balances";
         try{
             balances.add(restTemplate.exchange(UriComponentsBuilder.fromHttpUrl(url)
                     .toUriString(), HttpMethod.GET, null, new ParameterizedTypeReference<List<Long>>() {}
@@ -417,16 +415,15 @@ public class ApiService {
 
     public List<String> getStatus(long sequenceNumber){
         List<Integer> ports = portUtil.portPoolGenerator();
-        ports.replaceAll(integer -> integer + offset);
 
         List<String> statuses = new ArrayList<>();
 
         String url;
         for(int port : ports){
-            url = apiConfig.getRestServerUrl() + ":" + (port) + "/server/logStatus";
-
+            url = apiConfig.getRestServerUrl() + ":" + (port+offset) + "/server/logStatus";
             try{
                 statuses.add(restTemplate.getForObject(UriComponentsBuilder.fromHttpUrl(url)
+                                .queryParam("sequenceNumber", sequenceNumber)
                         .toUriString(), String.class));
             }
             catch (HttpServerErrorException e) {

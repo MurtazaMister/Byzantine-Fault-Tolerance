@@ -2,6 +2,7 @@ package com.lab.pbft.util.ConverterUtil;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.type.TypeFactory;
 import jakarta.persistence.AttributeConverter;
 import jakarta.persistence.Converter;
 
@@ -34,7 +35,8 @@ public class MapConverter implements AttributeConverter<Map<Long, String>, Strin
         }
         try {
             // Convert JSON String back to Map
-            return objectMapper.readValue(dbData, HashMap.class);
+            return objectMapper.readValue(dbData,
+                    TypeFactory.defaultInstance().constructMapType(HashMap.class, Long.class, String.class));
         } catch (IOException e) {
             throw new IllegalArgumentException("Error converting JSON to map", e);
         }

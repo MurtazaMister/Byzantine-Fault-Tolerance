@@ -117,7 +117,7 @@ public class PerformTransactionService {
                     }
                     apiConfig.setCurrentView((int)clientReply.getCurrentView());
                 } else {
-                    System.out.println("Received unverified reply for transaction " + request.getAmount() + " : " + request.getClientId() + " -> " + request.getReceiverId()+ " with signature count = "+signatureCount);
+                    System.out.println("Received unverified reply for transaction $" + request.getAmount() + " : " + request.getClientId() + " -> " + request.getReceiverId()+ " with signature count = "+signatureCount);
                 }
             }
 

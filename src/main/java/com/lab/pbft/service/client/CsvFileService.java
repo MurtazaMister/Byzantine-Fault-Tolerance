@@ -1,13 +1,15 @@
 package com.lab.pbft.service.client;
 
+import com.lab.pbft.config.KeyConfig;
 import com.lab.pbft.model.primary.Log;
 import com.lab.pbft.networkObjects.communique.Request;
+import com.lab.pbft.repository.secondary.EncryptionKeyRepository;
 import com.lab.pbft.service.DatabaseResetService;
 import com.lab.pbft.service.ExitService;
 import com.lab.pbft.util.ParseUtil;
 import com.lab.pbft.util.PortUtil;
 import com.lab.pbft.util.ServerStatusUtil;
-import com.lab.pbft.util.Stopwatch;
+import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
@@ -15,7 +17,6 @@ import org.apache.commons.csv.CSVRecord;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 import java.io.*;
@@ -23,11 +24,10 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.time.Duration;
-import java.time.LocalDateTime;
-import java.util.ArrayList;
+import java.security.PrivateKey;
+import java.util.HashMap;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
+import java.util.Map;
 
 @Service
 @Slf4j
@@ -39,6 +39,24 @@ public class CsvFileService {
     private String restServerUrl;
     @Value("${rest.server.offset}")
     private int offset;
+
+    private final Map<Long, PrivateKey> clientPrivateKeyStore = new HashMap<>();
+    @Autowired
+    @Lazy
+    private EncryptionKeyRepository encryptionKeyRepository;
+
+    @PostConstruct
+    public void init() {
+        // Getting private keys for all clients id = 1 to 10
+        for(long i = 1;i<=10;i++){
+            try {
+                clientPrivateKeyStore.put(i, KeyConfig.extractPrivateKey(encryptionKeyRepository.findById(i).getPrivateKey()));
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+    }
 
     @Autowired
     ApiService apiService;
@@ -79,10 +97,8 @@ public class CsvFileService {
             int currentSetNumber = 0;
             List<Integer> activeServerIds;
             List<Integer> byzantineServerIds;
-            Request request;
 
             log.info("Beginning file read, enter continue");
-            char sender_name , receiver_name;
 
             for(CSVRecord record : csvParser) {
                 Integer setNumber = tryParseSetNumber(record.get(0));
@@ -91,9 +107,6 @@ public class CsvFileService {
                     boolean exit = promptUser(inputReader);
 
                     if(exit){
-                        log.warn("If you exit, you will lose data and might have to re-run the file again");
-                        log.warn("Transactions upto this point has been committed, if you exit, those transactions will run again and data will become inconsistent");
-                        log.warn("To reset the database, run the servers once again with \"app.developer-mode=true\" in application.properties");
                         System.out.println("Exit? (Y/n)");
                         String ans = inputReader.readLine();
                         if(ans.equals("Y")){
@@ -103,17 +116,16 @@ public class CsvFileService {
 
                     currentSetNumber = setNumber;
                     log.warn("Beginning execution of set number: {}", currentSetNumber);
-                    request = parseUtil.parseTransaction(record.get(1));
+//                    request = parseUtil.parseTransaction(record.get(1));
                     activeServerIds = parseUtil.parseActiveServerList(record.get(2));
                     byzantineServerIds = parseUtil.parseActiveServerList(record.get(3));
 
                     serverStatusUtil.setServerStatuses(activeServerIds, byzantineServerIds);
 
                 }
-                else {
-                    request = parseUtil.parseTransaction(record.get(1));
-                }
+                Request request = parseUtil.parseTransaction(record.get(1), clientPrivateKeyStore);
 
+                System.out.printf("Sending request: $%d : %d -> %d\n", request.getAmount(), request.getClientId(), request.getReceiverId());
                 performTransactionService.performTransaction(request);
 
 //                futureTransaction.thenAccept(transaction -> {
@@ -165,6 +177,7 @@ public class CsvFileService {
 
                 if(input != null){
                     String[] parts = input.split(" ");
+                try {
 
                     switch(parts[0]){
 
@@ -203,6 +216,11 @@ public class CsvFileService {
                             log.warn("Unknown command: {}", parts[0]);
                             break;
                     }
+
+                }
+                catch (Exception e) {
+                    log.error("Error: {}", e.getMessage());
+                }
                 }
             }
         }
@@ -230,12 +248,12 @@ public class CsvFileService {
                     View number: %d
                     Status: %s
                     Approved: %s
-                    Transaction: $%d : %d -> %d
+                    Transaction: $%d : %c -> %c
                     \n""", log.getSequenceNumber(),
                     log.getViewNumber(), log.getType()
             , log.isApproved(), log.getPrePrepare().getRequest().getAmount(),
-                    log.getPrePrepare().getRequest().getClientId(),
-                    log.getPrePrepare().getRequest().getReceiverId());
+                    ((int)log.getPrePrepare().getRequest().getClientId()+'A'-1),
+                    ((int)log.getPrePrepare().getRequest().getReceiverId())+'A'-1);
         }
 
     }
@@ -260,7 +278,7 @@ public class CsvFileService {
             }
             sb.append("\n");
         }
-        System.out.println(sb.toString());
+        System.out.println(sb);
     }
 
     public void printStatus(long sequenceNumber){
@@ -274,11 +292,21 @@ public class CsvFileService {
         sb.append("\n");
         sb.append(" Status |");
         for(String status : statuses){
-            sb.append(" " + status + " |");
+            sb.append(" " + getTypeString(status) + " |");
         }
         sb.append("\n");
 
-        System.out.println(sb.toString());
+        System.out.println(sb);
 
+    }
+
+    public String getTypeString(String status){
+        return switch (status) {
+            case "PRE_PREPARE" -> "PP";
+            case "PREPARED" -> " P";
+            case "COMMITED" -> " C";
+            case "EXECUTED" -> " E";
+            default -> "XX";
+        };
     }
 }

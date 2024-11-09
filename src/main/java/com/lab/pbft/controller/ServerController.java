@@ -141,11 +141,13 @@ public class ServerController {
 
     @GetMapping("/logs")
     public List<Log> getLogs(){
+        log.info("Received hit on /server/logs");
         return logRepository.findAllByOrderBySequenceNumberAsc();
     }
 
     @GetMapping("/logStatus")
-    public String getStatus(long sequenceNumber){
+    public String getStatus(@RequestParam long sequenceNumber){
+        log.info("Received hit on /server/logStatus");
         Log log = logRepository.findById(sequenceNumber).orElse(null);
         if(log == null){
             return "XX";

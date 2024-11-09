@@ -8,9 +8,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 
+import java.security.PrivateKey;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -25,7 +27,7 @@ public class ParseUtil {
     @Lazy
     private KeyConfig keyConfig;
 
-    public Request parseTransaction(String cellValue) {
+    public Request parseTransaction(String cellValue, Map<Long, PrivateKey> clientPrivateKeyStore) {
         Pattern pattern = Pattern.compile("\\(([A-Z]), ([A-Z]), (\\d+)\\)");
         Matcher matcher = pattern.matcher(cellValue);
 
@@ -42,7 +44,7 @@ public class ParseUtil {
                     .timestamp(LocalDateTime.now().toString())
                     .build();
             try {
-                req.signMessage(keyConfig.getPrivateKey());
+                req.signMessage(clientPrivateKeyStore.get(senderId));
             } catch (Exception e) {
                 log.error("Unable to sign req: {}, error: {}", req, e.getMessage());
             }
@@ -53,6 +55,10 @@ public class ParseUtil {
     }
 
     public List<Integer> parseActiveServerList(String cellValue) {
+        if (cellValue.equals("[]")) {
+            return new ArrayList<>();  // Return an empty list
+        }
+
         Pattern pattern = Pattern.compile("\\[S(\\d+)(?:, S(\\d+))*\\]");
         Matcher matcher = pattern.matcher(cellValue);
 
