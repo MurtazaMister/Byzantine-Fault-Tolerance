@@ -143,4 +143,13 @@ public class ServerController {
     public List<Log> getLogs(){
         return logRepository.findAllByOrderBySequenceNumberAsc();
     }
+
+    @GetMapping("/logStatus")
+    public String getStatus(long sequenceNumber){
+        Log log = logRepository.findById(sequenceNumber).orElse(null);
+        if(log == null){
+            return "XX";
+        }
+        else return log.getType().toString();
+    }
 }

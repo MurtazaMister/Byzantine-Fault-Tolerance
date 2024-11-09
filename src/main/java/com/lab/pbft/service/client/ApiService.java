@@ -414,4 +414,40 @@ public class ApiService {
 
         return balances;
     }
+
+    public List<String> getStatus(long sequenceNumber){
+        List<Integer> ports = portUtil.portPoolGenerator();
+        ports.replaceAll(integer -> integer + offset);
+
+        List<String> statuses = new ArrayList<>();
+
+        String url;
+        for(int port : ports){
+            url = apiConfig.getRestServerUrl() + ":" + (port) + "/server/logStatus";
+
+            try{
+                statuses.add(restTemplate.getForObject(UriComponentsBuilder.fromHttpUrl(url)
+                        .toUriString(), String.class));
+            }
+            catch (HttpServerErrorException e) {
+                if(e.getStatusCode() == HttpStatus.SERVICE_UNAVAILABLE){
+                    log.error("Service unavailable : {}", e.getMessage());
+                } else {
+                    log.error("Server error: {}", e.getMessage());
+                }
+            }
+            catch (HttpClientErrorException e) {
+                log.error("Http error while fetching balance: {}", e.getStatusCode());
+            }
+            catch (ResourceAccessException e) {
+                log.error("Could not access server: {}", e.getMessage());
+            }
+            catch (Exception e) {
+                log.error("{}", e.getMessage());
+            }
+
+        }
+
+        return statuses;
+    }
 }

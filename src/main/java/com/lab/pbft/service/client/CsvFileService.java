@@ -152,8 +152,8 @@ public class CsvFileService {
                 if(cont || exit) break;
                 System.out.println("Enter commands for user "+clientService.getUsername());
                 System.out.println("""
-                        - printLog <server_id>(S1/S2/..) # Prints the log of server, request and its metadat
-                        - printDB <server_id>(S1/S2/..) # Balances of all users across all servers
+                        - printLog <server_id>(S1/S2/..) # Prints the log of server, request and its metadata
+                        - printDB # Balances of all users across all servers
                         - printStatus <sequence_no>(1/2/..) # Prints the status of log across all servers
                         - printView # Prints all the new_view messages exchanged
                         - performance
@@ -176,10 +176,11 @@ public class CsvFileService {
                             break;
 
                         case "printDB":
-                            if(parts.length == 1) printDB(null);
-                            else if (parts.length == 2) {
-                                printDB(parts[1]);
-                            }
+                            printDB();
+                            break;
+
+                        case "printStatus":
+                            if(parts.length==2) printStatus(Integer.parseInt(parts[1]));
                             break;
 
                         case "continue":
@@ -239,7 +240,7 @@ public class CsvFileService {
 
     }
 
-    public void printDB(String port){
+    public void printDB(){
         List<List<Long>> listBalances = apiService.getAllBalances();
 
         StringBuilder sb = new StringBuilder("");
@@ -260,5 +261,24 @@ public class CsvFileService {
             sb.append("\n");
         }
         System.out.println(sb.toString());
+    }
+
+    public void printStatus(long sequenceNumber){
+        List<String> statuses = apiService.getStatus(sequenceNumber);
+
+        StringBuilder sb = new StringBuilder("");
+        sb.append(" Server |");
+        for(int i = 1;i<=7;i++){
+            sb.append(" S" + i + " |");
+        }
+        sb.append("\n");
+        sb.append(" Status |");
+        for(String status : statuses){
+            sb.append(" " + status + " |");
+        }
+        sb.append("\n");
+
+        System.out.println(sb.toString());
+
     }
 }
