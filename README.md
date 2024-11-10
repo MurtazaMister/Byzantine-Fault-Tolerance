@@ -11,6 +11,8 @@ To design and implement a linear PBFT protocol on a distributed banking applicat
 - Server-Client communication is facilitated via REST API's
 - Servers occupy the ports {8081, 8082, 8083, 8084, 8085, 8086, 8087} for socket communication
 - Servers occupy the ports {8091, 8092, 8093, 8094, 8095, 8096, 8097} for REST endpoints
+- Every single message that is exchanged among server-server or server-client is signed while sending and verified on reception.
+- If the signature is not verified, then the message will be rejected, irrespective of the contents of the message.
 - All the data is stored in a MySQL database
 - The project is well-structured and applies coding practices and principles such as:
   - Separation of concerns
