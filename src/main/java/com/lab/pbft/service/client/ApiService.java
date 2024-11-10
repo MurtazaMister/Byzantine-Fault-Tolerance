@@ -4,6 +4,7 @@ package com.lab.pbft.service.client;
 import com.lab.pbft.config.client.ApiConfig;
 import com.lab.pbft.dto.ValidateUserDTO;
 import com.lab.pbft.model.primary.Log;
+import com.lab.pbft.model.primary.NewView;
 import com.lab.pbft.networkObjects.acknowledgements.ClientReply;
 import com.lab.pbft.networkObjects.acknowledgements.Reply;
 import com.lab.pbft.networkObjects.communique.Request;
@@ -446,5 +447,38 @@ public class ApiService {
         }
 
         return statuses;
+    }
+
+    public List<NewView> getNewViews(){
+        String url = apiConfig.getRestServerUrlWithPort() + "/server/newViews";
+
+        return restTemplate.exchange(UriComponentsBuilder.fromHttpUrl(url)
+                .toUriString(), HttpMethod.GET, null, new ParameterizedTypeReference<List<NewView>>() {}
+        ).getBody();
+    }
+
+    public void resetDatabases(){
+
+        List<Integer> ports = portUtil.portPoolGenerator();
+
+        String url;
+        for(int port : ports) {
+            url = apiConfig.getRestServerUrl() + ":" + (port + offset) + "/server/reset";
+            try {
+                restTemplate.getForObject(UriComponentsBuilder.fromHttpUrl(url).toUriString(), Void.class);
+            } catch (HttpServerErrorException e) {
+                if (e.getStatusCode() == HttpStatus.SERVICE_UNAVAILABLE) {
+                    log.error("Service unavailable : {}", e.getMessage());
+                } else {
+                    log.error("Server error: {}", e.getMessage());
+                }
+            } catch (HttpClientErrorException e) {
+                log.error("Http error while fetching balance: {}", e.getStatusCode());
+            } catch (ResourceAccessException e) {
+                log.error("Could not access server: {}", e.getMessage());
+            } catch (Exception e) {
+                log.error("{}", e.getMessage());
+            }
+        }
     }
 }

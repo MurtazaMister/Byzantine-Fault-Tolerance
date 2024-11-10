@@ -2,6 +2,7 @@ package com.lab.pbft.service.client;
 
 import com.lab.pbft.config.KeyConfig;
 import com.lab.pbft.model.primary.Log;
+import com.lab.pbft.model.primary.NewView;
 import com.lab.pbft.networkObjects.communique.Request;
 import com.lab.pbft.repository.secondary.EncryptionKeyRepository;
 import com.lab.pbft.service.DatabaseResetService;
@@ -9,6 +10,7 @@ import com.lab.pbft.service.ExitService;
 import com.lab.pbft.util.ParseUtil;
 import com.lab.pbft.util.PortUtil;
 import com.lab.pbft.util.ServerStatusUtil;
+import com.lab.pbft.util.Stopwatch;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.csv.CSVFormat;
@@ -25,6 +27,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.PrivateKey;
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -103,8 +107,9 @@ public class CsvFileService {
             for(CSVRecord record : csvParser) {
                 Integer setNumber = tryParseSetNumber(record.get(0));
                 if(setNumber != null) {
-                    databaseResetService.init();
                     boolean exit = promptUser(inputReader);
+                    log.info("Resetting tables");
+                    apiService.resetDatabases();
 
                     if(exit){
                         System.out.println("Exit? (Y/n)");
@@ -126,7 +131,15 @@ public class CsvFileService {
                 Request request = parseUtil.parseTransaction(record.get(1), clientPrivateKeyStore);
 
                 System.out.printf("Sending request: $%d : %d -> %d\n", request.getAmount(), request.getClientId(), request.getReceiverId());
+                LocalDateTime startTime = LocalDateTime.now();
+
                 performTransactionService.performTransaction(request);
+
+                LocalDateTime currentTime = LocalDateTime.now();
+                clientService.setCountOfTransactionsExecuted(clientService.getCountOfTransactionsExecuted()+1);
+                clientService.setTotalTimeInProcessingTransactions(clientService.getTotalTimeInProcessingTransactions()+(Duration.between(startTime, currentTime).toNanos()/1000000000.0));
+                log.info("{}", Stopwatch.getDuration(startTime, currentTime, "Request $"+request.getAmount()+" : "+request.getClientId()+" -> "+request.getReceiverId()+" executed in"));
+
 
 //                futureTransaction.thenAccept(transaction -> {
 //                    LocalDateTime currentTime = LocalDateTime.now();
@@ -198,6 +211,17 @@ public class CsvFileService {
 
                         case "continue":
                             cont = true;
+                            break;
+
+                        case "printView":
+                            printView();
+                            break;
+
+                        case "performance":
+
+                            System.out.println("Average latency: "+Math.round((100.0*clientService.getTotalTimeInProcessingTransactions())/clientService.getCountOfTransactionsExecuted())/100.0+" seconds per transaction");
+                            System.out.println("Average throughput: "+Math.round((100.0*clientService.getCountOfTransactionsExecuted())/clientService.getTotalTimeInProcessingTransactions())/100.0+" transactions per second");
+
                             break;
 
                         case "c":
@@ -308,5 +332,40 @@ public class CsvFileService {
             case "EXECUTED" -> " E";
             default -> "XX";
         };
+    }
+
+    public void printView(){
+        List<NewView> newViewList = apiService.getNewViews();
+
+        StringBuilder sb = new StringBuilder("\n");
+
+        for(NewView newView : newViewList){
+
+            sb.append(String.format("NEW_VIEW message for view: %d\n\n", newView.getView()));
+
+            sb.append("Received logs from other servers:\n\n");
+
+            for(NewView.Bundle bundle : newView.getBundles()){
+                sb.append("\tPre-Prepare for:\n");
+                sb.append(String.format("\t\tSequence number: %d\n", bundle.getSequenceNumber()));
+                sb.append(String.format("\t\tView number: %d\n", bundle.getPrePrepare().getCurrentView()));
+                sb.append(String.format("\t\tRequest digest: %s\n", bundle.getPrePrepare().getRequestDigest()));
+                sb.append(String.format("\t\tApproved: %s\n", bundle.isApproved()));
+                sb.append("\t\tSignatures on Prepared:\n");
+
+                for(long id : bundle.getSignatures().keySet()){
+                    sb.append(String.format("\t\t\t%d: %s\n", id, bundle.getSignatures().get(id)));
+                }
+                sb.append("\n");
+            }
+
+            sb.append("Signatures on VIEW_CHANGE:\n");
+
+            for(long id : newView.getSignatures().keySet()){
+                sb.append(String.format("\t%d: %s\n", id, newView.getSignatures().get(id)));
+            }
+            sb.append("\n");
+        }
+        System.out.println(sb);
     }
 }

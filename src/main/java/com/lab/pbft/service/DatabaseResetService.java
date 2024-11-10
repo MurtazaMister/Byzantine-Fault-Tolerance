@@ -12,7 +12,7 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class DatabaseResetService {
 
-    private String[] tables = {"log", "replyLog"};
+    private String[] tables = {"log", "replyLog", "new_view_bundle", "new_view"};
 
     private final JdbcTemplate primaryJdbcTemplate;
 
@@ -34,9 +34,10 @@ public class DatabaseResetService {
             // Removing foreign key checks
             primaryJdbcTemplate.execute("SET FOREIGN_KEY_CHECKS = 0;");
 
-            // Dropping all transaction tables
+            // Dropping all tables
             for (String table : tables) {
-                primaryJdbcTemplate.execute("TRUNCATE TABLE " + table);
+                primaryJdbcTemplate.execute("DELETE FROM " + table);
+                primaryJdbcTemplate.execute("ALTER TABLE " + table + " AUTO_INCREMENT = 1");
             }
 
             // Reviving foreign key checks

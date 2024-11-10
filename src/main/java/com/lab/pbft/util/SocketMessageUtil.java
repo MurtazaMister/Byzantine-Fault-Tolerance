@@ -192,9 +192,11 @@ public class SocketMessageUtil {
                             log.info("Received verified message from port {}: {}", message.getFromPort(), serverStatusUpdate);
 
                             serverStatusUtil.setFailed(serverStatusUpdate.isFailServer());
+                            serverStatusUtil.setByzantine(serverStatusUpdate.isByzantineServer());
 
                             AckServerStatusUpdate ackServerStatusUpdate = AckServerStatusUpdate.builder()
                                     .serverFailed(serverStatusUtil.isFailed())
+                                    .serverByzantine(serverStatusUtil.isByzantine())
                                     .build();
 
                             AckMessageWrapper ackMessageWrapper = AckMessageWrapper.builder()
@@ -216,6 +218,7 @@ public class SocketMessageUtil {
 
                             AckServerStatusUpdate ackServerStatusUpdate = AckServerStatusUpdate.builder()
                                     .serverFailed(serverStatusUtil.isFailed())
+                                    .serverByzantine(serverStatusUtil.isByzantine())
                                     .build();
 
                             AckMessageWrapper ackMessageWrapper = AckMessageWrapper.builder()

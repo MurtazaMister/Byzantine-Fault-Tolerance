@@ -1,8 +1,11 @@
 package com.lab.pbft.controller;
 
 import com.lab.pbft.model.primary.Log;
+import com.lab.pbft.model.primary.NewView;
 import com.lab.pbft.networkObjects.communique.ServerStatusUpdate;
 import com.lab.pbft.repository.primary.LogRepository;
+import com.lab.pbft.repository.primary.NewViewRepository;
+import com.lab.pbft.service.DatabaseResetService;
 import com.lab.pbft.service.SocketService;
 import com.lab.pbft.util.ServerStatusUtil;
 import com.lab.pbft.util.SocketMessageUtil;
@@ -38,6 +41,12 @@ public class ServerController {
     @Autowired
     @Lazy
     private LogRepository logRepository;
+    @Autowired
+    @Lazy
+    private NewViewRepository newViewRepository;
+    @Autowired
+    @Lazy
+    private DatabaseResetService databaseResetService;
 
     @GetMapping("/test")
     public ResponseEntity<Boolean> test() {
@@ -153,5 +162,17 @@ public class ServerController {
             return "XX";
         }
         else return log.getType().toString();
+    }
+
+    @GetMapping("/newViews")
+    public List<NewView> getNewViews(){
+        log.info("Received hit on /server/newViews");
+        return newViewRepository.findAllByOrderByViewAsc();
+    }
+
+    @GetMapping("/reset")
+    public void resetDatabases(){
+        log.info("Resetting database");
+        databaseResetService.init();
     }
 }
