@@ -90,7 +90,7 @@ public class PrePrepare {
 
             dbLog = logRepository.save(dbLog);
 
-            log.info("Sending pre-prepare message: {}", prePrepare);
+            log.info("Sending pre-prepare message: seq num: {}", prePrepare.getSequenceNumber());
 
             MessageWrapper socketMessageWrapper = MessageWrapper.builder()
                     .type(MessageWrapper.MessageType.PRE_PREPARE)

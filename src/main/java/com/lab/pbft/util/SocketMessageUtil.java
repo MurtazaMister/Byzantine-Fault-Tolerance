@@ -189,7 +189,8 @@ public class SocketMessageUtil {
                     case SERVER_STATUS_UPDATE:
                         ServerStatusUpdate serverStatusUpdate = message.getServerStatusUpdate();
                         if (message.getToPort() == socketService.getAssignedPort()) {
-                            log.info("Received verified message from port {}: {}", message.getFromPort(), serverStatusUpdate);
+//                            log.info("Received verified serverStatusUpdate from port {}: {}", message.getFromPort(), serverStatusUpdate);
+                            log.info("Received verified serverStatusUpdate from port {}", message.getFromPort());
 
                             serverStatusUtil.setFailed(serverStatusUpdate.isFailServer());
                             serverStatusUtil.setByzantine(serverStatusUpdate.isByzantineServer());
@@ -210,7 +211,8 @@ public class SocketMessageUtil {
 
                             out.writeObject(ackMessageWrapper);
 
-                            log.info("Sent signed ACK to server {}: {}", ackMessageWrapper.getToPort(), ackMessageWrapper.getAckServerStatusUpdate());
+//                            log.info("Sent signed ACK to server {}: {}", ackMessageWrapper.getToPort(), ackMessageWrapper.getAckServerStatusUpdate());
+                            log.info("Sent signed ACK to server {}", ackMessageWrapper.getToPort());
 
                             out.flush();
                         } else {
@@ -232,7 +234,8 @@ public class SocketMessageUtil {
 
                             out.writeObject(ackMessageWrapper);
 
-                            log.info("Sent signed ACK to server {}: {}", ackMessageWrapper.getToPort(), ackMessageWrapper.getAckServerStatusUpdate());
+//                            log.info("Sent signed ACK to server {}: {}", ackMessageWrapper.getToPort(), ackMessageWrapper.getAckServerStatusUpdate());
+                            log.info("Sent signed ACK to server {}", ackMessageWrapper.getToPort());
 
                             out.flush();
                         }
@@ -240,7 +243,8 @@ public class SocketMessageUtil {
                     case MESSAGE:
                     {
                         Message mess = message.getMessage();
-                        log.info("Received verified message from port {}: {}", message.getFromPort(), mess);
+//                        log.info("Received verified message from port {}: {}", message.getFromPort(), mess);
+                        log.info("Received verified message from port {}", message.getFromPort());
 
                         AckMessage ackMessage = AckMessage.builder()
                                 .message(mess.getMessage())
@@ -257,7 +261,8 @@ public class SocketMessageUtil {
 
                         out.writeObject(ackMessageWrapper);
 
-                        log.info("Sent signed ACK to server {}: {}", ackMessageWrapper.getToPort(), ackMessage);
+                        log.info("Sent signed ACK to server {}", ackMessageWrapper.getToPort());
+//                        log.info("Sent signed ACK to server {}: {}", ackMessageWrapper.getToPort(), ackMessage);
 
                         out.flush();
                     }
@@ -266,7 +271,7 @@ public class SocketMessageUtil {
                         if(serverStatusUtil.isFailed() || serverStatusUtil.isByzantine()  || serverStatusUtil.isViewChangeTransition()) return;
 
                         Request request = message.getRequest();
-                        log.info("Received verified request from port {}: {}", message.getFromPort(), request);
+                        log.info("Received verified request from port {}: {}", message.getFromPort());
                         if(!request.verifyMessage(keyConfig.getPublicKeyStore().get(request.getClientId()))){
                             log.error("Request cannot be verified, rejecting: {}", request);
 
@@ -331,7 +336,7 @@ public class SocketMessageUtil {
                             out.flush();
                         }
                         else {
-                            log.error("Request: {} forwarded to wrong leader, rejecting", request);
+                            log.error("Request: {} forwarded to wrong leader, rejecting", request.getHash());
 
                             AckMessageWrapper ackMessageWrapper = AckMessageWrapper.builder()
                                     .type(AckMessageWrapper.MessageType.CLIENT_REPLY)
@@ -349,24 +354,24 @@ public class SocketMessageUtil {
                     break;
                     case PRE_PREPARE:{
                         if(serverStatusUtil.isFailed() || serverStatusUtil.isByzantine() || serverStatusUtil.isViewChangeTransition()) return;
-                        log.info("Received verified pre-prepare from port {}: {}", message.getFromPort(), message.getPrePrepare());
+                        log.info("Received verified pre-prepare from port {}: {}", message.getFromPort());
                         pbftService.prepare(in, out, message);
                     }
                     break;
                     case COMMIT:{
                         if(serverStatusUtil.isFailed() || serverStatusUtil.isByzantine()  || serverStatusUtil.isViewChangeTransition()) return;
-                        log.info("Received verified commit message from port {}: {}", message.getFromPort(), message.getCommit());
+                        log.info("Received verified commit message from port {}: {}", message.getFromPort());
                         pbftService.ackCommit(in, out, message);
                     }
                     break;
                     case EXECUTE:{
                         if(serverStatusUtil.isFailed() || serverStatusUtil.isByzantine()  || serverStatusUtil.isViewChangeTransition()) return;
-                        log.info("Received verified execute message from port {}: {}", message.getFromPort(), message.getExecute());
+                        log.info("Received verified execute message from port {}: {}", message.getFromPort());
                         pbftService.ackExecute(in, out, message);
                     }
                     break;
                     case VIEW_CHANGE: {
-                        log.info("Received verified view_change message from port {}: {}", message.getFromPort(), message.getViewChange());
+                        log.info("Received verified view_change message from port {}: {}", message.getFromPort());
                         if(serverStatusUtil.isFailed() || serverStatusUtil.isByzantine() ) return;
 
                         pbftService.newView(in, out, message);
@@ -374,7 +379,7 @@ public class SocketMessageUtil {
                     }
                     break;
                     case NEW_VIEW: {
-                        log.info("Received verified new_view message from port {}: {}", message.getFromPort(), message.getNewView());
+                        log.info("Received verified new_view message from port {}: {}", message.getFromPort());
                         if(serverStatusUtil.isFailed() || serverStatusUtil.isByzantine() ) {
                             MessageWrapper finalMessage = message;
                             executorService.submit(() -> {
@@ -399,7 +404,7 @@ public class SocketMessageUtil {
 
                         out.writeObject(ackMessageWrapper);
 
-                        log.info("Sent signed ACK to server {}: {}", ackMessageWrapper.getToPort(), ackMessage);
+                        log.info("Sent signed ACK to server {}: {}", ackMessageWrapper.getToPort());
 
                         out.flush();
 

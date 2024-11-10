@@ -167,9 +167,7 @@ public class ServerController {
     @GetMapping("/newViews")
     public List<NewView> getNewViews(){
         log.info("Received hit on /server/newViews");
-        List<NewView> newViewList = newViewRepository.findAllByOrderByViewAsc();
-        log.info("Found this: {}", newViewList.toString());
-        return newViewList;
+        return newViewRepository.findAllByOrderByViewAsc();
     }
 
     @GetMapping("/reset")
