@@ -91,9 +91,6 @@ public class CsvFileService {
 
     public void readAndExecuteCsvFile(String filePath, BufferedReader inputReader) {
         Path path = Paths.get(filePath);
-        char baseUname = 'A';
-        String url;
-        List<Integer> ports = portUtil.portPoolGenerator();
 
         try (Reader reader = Files.newBufferedReader(path, StandardCharsets.UTF_8);
              CSVParser csvParser = new CSVParser(reader, CSVFormat.DEFAULT)){
@@ -121,7 +118,6 @@ public class CsvFileService {
 
                     currentSetNumber = setNumber;
                     log.warn("Beginning execution of set number: {}", currentSetNumber);
-//                    request = parseUtil.parseTransaction(record.get(1));
                     activeServerIds = parseUtil.parseActiveServerList(record.get(2));
                     byzantineServerIds = parseUtil.parseActiveServerList(record.get(3));
 
@@ -139,18 +135,6 @@ public class CsvFileService {
                 clientService.setCountOfTransactionsExecuted(clientService.getCountOfTransactionsExecuted()+1);
                 clientService.setTotalTimeInProcessingTransactions(clientService.getTotalTimeInProcessingTransactions()+(Duration.between(startTime, currentTime).toNanos()/1000000000.0));
                 log.info("{}", Stopwatch.getDuration(startTime, currentTime, "Request $"+request.getAmount()+" : "+request.getClientId()+" -> "+request.getReceiverId()+" executed in"));
-
-
-//                futureTransaction.thenAccept(transaction -> {
-//                    LocalDateTime currentTime = LocalDateTime.now();
-//                    if(transaction!=null) {
-//                        clientService.setCountOfTransactionsExecuted(clientService.getCountOfTransactionsExecuted()+1);
-//                        clientService.setTotalTimeInProcessingTransactions(clientService.getTotalTimeInProcessingTransactions()+(Duration.between(startTime, currentTime).toNanos()/1000000000.0));
-//                        log.info("{}", Stopwatch.getDuration(startTime, currentTime, "Transaction $"+transaction.getAmount()+" : "+transaction.getSenderId()+" -> "+transaction.getReceiverId()+" executed in"));
-//                    }
-//                    else
-//                        log.error("Transaction failed");
-//                });
 
             }
 
