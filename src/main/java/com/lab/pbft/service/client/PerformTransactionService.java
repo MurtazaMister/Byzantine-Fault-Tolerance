@@ -82,7 +82,7 @@ public class PerformTransactionService {
             if (finalReply != null && signatureCount != 0) {
                 System.out.println("Verified at least f+1 signatures in re-transact, received " + signatureCount + " signatures");
                 System.out.println("Transaction status: "+((finalReply.isApproved())?"Approved":"Failed"));
-                System.out.println("Final balance = $" + finalReply.getFinalBalance() + "\nAfter executing "+((finalReply.isApproved())?"approved":"failed")+" transaction $" + request.getAmount() + " : " + request.getClientId() + " -> " + request.getReceiverId());
+                System.out.println("Final balance = $" + finalReply.getFinalBalance() + "\nAfter executing "+((finalReply.isApproved())?"approved":"failed")+" transaction $" + request.getAmount() + " : " + (char)(request.getClientId()+(int)'A'-1) + " -> " + (char)(request.getReceiverId()+(int)'A'-1));
                 if(apiConfig.getCurrentView() != finalReply.getCurrentView()){
                     System.out.println("View changed, current view: "+ finalReply.getCurrentView());
                 }

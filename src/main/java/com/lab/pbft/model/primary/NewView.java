@@ -3,6 +3,7 @@ package com.lab.pbft.model.primary;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.lab.pbft.networkObjects.communique.PrePrepare;
 import com.lab.pbft.networkObjects.communique.ViewChange;
+import com.lab.pbft.util.ConverterUtil.BundleConverter;
 import com.lab.pbft.util.ConverterUtil.ByteStringConverter;
 import com.lab.pbft.util.ConverterUtil.MapConverter;
 import com.lab.pbft.util.ConverterUtil.PrePrepareConverter;
@@ -57,11 +58,12 @@ public class NewView implements Serializable {
     }
 
     @Id
-    private int view;
+    private Integer view;
 
+    @Convert(converter = BundleConverter.class)
     @ElementCollection
     @CollectionTable(name = "new_view_bundle", joinColumns = @JoinColumn(name = "new_view_view"))
-    private List<Bundle> bundles;
+    private List<Bundle> bundles = new ArrayList<>();
 
     @Convert(converter = MapConverter.class) // Convert the Map<Long, String> using MapConverter
     @Column(columnDefinition = "MEDIUMTEXT")
@@ -96,7 +98,7 @@ public class NewView implements Serializable {
     public static class Bundle implements Serializable {
         private static final long serialVersionUID = 1L;
 
-        private long sequenceNumber;
+        private Long sequenceNumber;
 
         @Convert(converter = PrePrepareConverter.class)
         @Column(columnDefinition = "MEDIUMTEXT")
@@ -106,7 +108,7 @@ public class NewView implements Serializable {
         @Column(columnDefinition = "MEDIUMTEXT")
         private Map<Long, String> signatures;
 
-        private boolean approved;
+        private Boolean approved;
 
         @JsonIgnore
         public static com.lab.pbft.networkObjects.acknowledgements.NewView.Bundle toBundle(ViewChange.Bundle b){

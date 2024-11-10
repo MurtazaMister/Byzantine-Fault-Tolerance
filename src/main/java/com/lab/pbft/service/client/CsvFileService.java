@@ -1,6 +1,7 @@
 package com.lab.pbft.service.client;
 
 import com.lab.pbft.config.KeyConfig;
+import com.lab.pbft.config.client.ApiConfig;
 import com.lab.pbft.model.primary.Log;
 import com.lab.pbft.model.primary.NewView;
 import com.lab.pbft.networkObjects.communique.Request;
@@ -48,6 +49,9 @@ public class CsvFileService {
     @Autowired
     @Lazy
     private EncryptionKeyRepository encryptionKeyRepository;
+    @Autowired
+    @Lazy
+    private ApiConfig apiConfig;
 
     @PostConstruct
     public void init() {
@@ -107,6 +111,7 @@ public class CsvFileService {
                     boolean exit = promptUser(inputReader);
                     log.info("Resetting tables");
                     apiService.resetDatabases();
+                    apiConfig.setCurrentView(1);
 
                     if(exit){
                         System.out.println("Exit? (Y/n)");
@@ -126,7 +131,7 @@ public class CsvFileService {
                 }
                 Request request = parseUtil.parseTransaction(record.get(1), clientPrivateKeyStore);
 
-                System.out.printf("Sending request: $%d : %d -> %d\n", request.getAmount(), request.getClientId(), request.getReceiverId());
+                System.out.printf("Sending request: $%d : %c -> %c\n", request.getAmount(), (int)(request.getClientId()+'A'-1), (int)(request.getReceiverId()+'A'-1));
                 LocalDateTime startTime = LocalDateTime.now();
 
                 performTransactionService.performTransaction(request);
@@ -134,7 +139,7 @@ public class CsvFileService {
                 LocalDateTime currentTime = LocalDateTime.now();
                 clientService.setCountOfTransactionsExecuted(clientService.getCountOfTransactionsExecuted()+1);
                 clientService.setTotalTimeInProcessingTransactions(clientService.getTotalTimeInProcessingTransactions()+(Duration.between(startTime, currentTime).toNanos()/1000000000.0));
-                log.info("{}", Stopwatch.getDuration(startTime, currentTime, "Request $"+request.getAmount()+" : "+request.getClientId()+" -> "+request.getReceiverId()+" executed in"));
+                log.info("{}", Stopwatch.getDuration(startTime, currentTime, "Request $"+request.getAmount()+" : "+(char)(request.getClientId()+(int)'A'-1)+" -> "+(char)(request.getReceiverId()+(int)'A'-1)+" executed in"));
 
             }
 
@@ -334,7 +339,7 @@ public class CsvFileService {
                 sb.append(String.format("\t\tSequence number: %d\n", bundle.getSequenceNumber()));
                 sb.append(String.format("\t\tView number: %d\n", bundle.getPrePrepare().getCurrentView()));
                 sb.append(String.format("\t\tRequest digest: %s\n", bundle.getPrePrepare().getRequestDigest()));
-                sb.append(String.format("\t\tApproved: %s\n", bundle.isApproved()));
+                sb.append(String.format("\t\tApproved: %s\n", bundle.getApproved()));
                 sb.append("\t\tSignatures on Prepared:\n");
 
                 for(long id : bundle.getSignatures().keySet()){

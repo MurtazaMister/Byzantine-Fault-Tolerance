@@ -16,20 +16,26 @@ public class PrePrepareConverter implements AttributeConverter<PrePrepare, Strin
     @Override
     public String convertToDatabaseColumn(PrePrepare prePrepare) {
         try {
+            if(prePrepare == null){
+                return "{}";
+            }
             return objectMapper.writeValueAsString(prePrepare);
         } catch (JsonProcessingException e) {
             log.error("Could not serialize PrePrepare object: {}", e.getMessage());
         }
-        return null;
+        return "{}";
     }
 
     @Override
     public PrePrepare convertToEntityAttribute(String dbData) {
         try {
+            if(dbData == null || dbData.trim().isEmpty()){
+                return new PrePrepare();
+            }
             return objectMapper.readValue(dbData, PrePrepare.class);
         } catch (JsonProcessingException e) {
             log.error("Could not deserialize PrePrepare object: {}", e.getMessage());
         }
-        return null;
+        return new PrePrepare();
     }
 }

@@ -167,12 +167,15 @@ public class ServerController {
     @GetMapping("/newViews")
     public List<NewView> getNewViews(){
         log.info("Received hit on /server/newViews");
-        return newViewRepository.findAllByOrderByViewAsc();
+        List<NewView> newViewList = newViewRepository.findAllByOrderByViewAsc();
+        log.info("Found this: {}", newViewList.toString());
+        return newViewList;
     }
 
     @GetMapping("/reset")
     public void resetDatabases(){
-        log.info("Resetting database");
+        log.info("Resetting database and servers");
+        socketService.setCurrentView(1);
         databaseResetService.init();
     }
 }
