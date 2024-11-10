@@ -27,6 +27,7 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 
 @Component
@@ -177,7 +178,18 @@ public class PrePrepare {
                     log.info("Received at least {} signatures, moving to commit", threshold);
                 }
 
-                return (!serverStatusUtil.isByzantine())?pbftService.commit(dbLog, prePrepare, signatures): ClientReply.builder().currentView(-1).build();
+                if(!serverStatusUtil.isByzantine()){
+                    if(receipts.get(prepared).equals(apiConfig.getServerPopulation())){
+                        log.info("Received {}/{} signatures, OPTIMISTIC PHASE REDUCTION, executing transaction directly", receipts.get(prepared), apiConfig.getServerPopulation());
+                        return pbftService.execute(dbLog, prePrepare, signatures);
+                    }
+                    else{
+                        return pbftService.commit(dbLog, prePrepare, signatures);
+                    }
+                }
+                else{
+                    return ClientReply.builder().currentView(-1).build();
+                }
 
             }
             catch(InterruptedException | ExecutionException e){
