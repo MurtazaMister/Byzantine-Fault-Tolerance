@@ -1,32 +1,70 @@
-# CSE 535: Distributed Systems
-## Lab 2
+# Distributed System with Practical Byzantine Fault Tolerance (PBFT)
 
-### Objective
-To design and implement a linear PBFT protocol on a distributed banking application with possible byzantine nodes.
+Welcome to the **PBFT Distributed System** repository! This project implements the **Practical Byzantine Fault Tolerance (PBFT)** protocol, a widely used consensus algorithm that ensures reliable operation even in the presence of faulty or malicious nodes.
 
-### Implementation
-- This project has been implemented in Java, Spring Boot
-- All servers and clients are spawned from the same project
-- All servers communicate via sockets
-- Server-Client communication is facilitated via REST API's
-- Servers occupy the ports {8081, 8082, 8083, 8084, 8085, 8086, 8087} for socket communication
-- Servers occupy the ports {8091, 8092, 8093, 8094, 8095, 8096, 8097} for REST endpoints
-- Every single message that is exchanged among server-server or server-client is signed while sending and verified on reception.
-- If the signature is not verified, then the message will be rejected, irrespective of the contents of the message.
-- All the data is stored in a MySQL database
-- The project is well-structured and applies coding practices and principles such as:
-  - Separation of concerns
-  - Dependency injections
-  - Modular design
-  - Consistent error handling
-  - DRY principles (Don't repeat yourself)
-  - Clean code practices with meaningful naming conventions
+---
 
-### Acknowledgements
-- Use of [StackOverflow](stackoverflow.com) for solving commonly encountered errors
-- Use of AI assistant tool - [ChatGPT](chat.openai.com) for
-  - Syntax and format understanding and correction
-  - Best practices to be followed for the flow of data within the system
-  - To find out alternative and efficient methods for implementation of my logic
-  - Debugging of errors
-- Use of <b>IntelliJ's Built-in Smart Completion</b> code auto-completion feature to autofill repetitive parts of the code
+## 📝 **Overview**
+
+This project demonstrates a fault-tolerant distributed system using PBFT to maintain consistency and reliability across nodes. The protocol is designed to handle **3f+1 nodes**, tolerating up to **f Byzantine faults**. It ensures safety, liveness, and consensus in adversarial conditions.
+
+---
+
+## ⚙️ **Features**
+
+- **Fault Tolerance:** Handles up to `f` Byzantine faults in a `3f+1` node system.  
+- **Secure Transactions:** Uses digital signatures to verify and validate messages.  
+- **Message Phases:** Implements PBFT's pre-prepare, prepare, and commit phases.  
+- **Efficient Communication:** Reduces communication overhead while maintaining consensus.  
+- **Dynamic Configuration:** Nodes can join or leave while maintaining system integrity.  
+
+---
+
+## 🚀 **Getting Started**
+
+### Prerequisites
+- Java 17+
+- Spring Boot
+- Maven
+
+### Setup Instructions
+1. Clone this repository:  
+   ```bash
+   git clone https://github.com/MurtazaMister/Byzantine-Fault-Tolerance.git
+   cd paxos
+   ```
+2. Build the project:
+   ```bash
+   mvn clean install
+   ```
+3. Run the application:
+   ```bash
+   run_servers.bat
+   ```
+
+---
+
+## 🛠️ How It Works
+
+1. **Node Communication:** Each node communicates with all others using sockets.  
+2. **Transaction Flow:**  
+   - A client sends a transaction request to a primary node.  
+   - The primary initiates the **pre-prepare phase**, broadcasting the request.  
+   - All nodes validate the request in the **prepare phase**.  
+   - Nodes finalize consensus in the **commit phase**, ensuring the transaction is consistent across all replicas.  
+3. **Fault Tolerance:**  
+   - The system remains operational even if up to `f` nodes act maliciously or fail.  
+   - Digital signatures and cryptographic hashes ensure secure message validation.  
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Fork the repository, make improvements, and submit a pull request.
+
+---
+
+## 📧 Contact
+
+For queries or feedback, reach out at:  
+📬 **murtazaakil.mister@stonybrook.edu**
